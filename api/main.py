@@ -1,7 +1,9 @@
 import re
 import os
+from typing import Generator
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from newspaper import Article
 from openai import OpenAI
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -38,6 +40,32 @@ def summarize(url: str):
 
         summary = summarize_content(content)
         return {"summary": summary}
+    except RuntimeError as e:
+        return {"error": str(e)}
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
+
+
+@app.get("/summarize/stream")
+def summarize_stream(url: str):
+    """
+    Summarize the content from the given URL. (Streaming version)
+    This version is designed to handle larger content by streaming the response.
+    """
+    # Check if url is valid
+    if not url.startswith(("http://", "https://")):
+        return {"error": "Invalid URL. Please provide a valid URL."}
+
+    try:
+        if is_valid_youtube_url(url):
+            content = get_video_transcript(url)
+        else:
+            content = get_text_content(url)
+
+        return StreamingResponse(
+            summarize_content_stream(content),
+            media_type="text/plain",
+        )
     except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
@@ -136,7 +164,7 @@ Take a step back and think step by step about how to achieve the best result pos
 1. You only output Markdown.
 2. Do not give warnings or notes; only output the requested sections.
 3. Use H3 headers for each section.
-4. You use bullets, not numbered lists.
+4. You use bullets (`-`), not numbered lists.
 5. Do not repeat ideas, or quotes.
 6. Do not start items with the same opening words.
 """
@@ -156,3 +184,23 @@ def summarize_content(content: str) -> str:
     )
 
     return response.choices[0].message.content
+
+
+def summarize_content_stream(content: str) -> Generator:
+    """
+    Summarize the given content using OpenAI's API. (Streaming version)
+    This version is designed to handle larger content by streaming the response.
+    """
+
+    response = openai_client.chat.completions.create(
+        model="gemini-2.0-flash",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Summarize the following content: {content}"},
+        ],
+        stream=True,
+    )
+
+    # Collect the streamed response
+    for chunk in response:
+        yield chunk.choices[0].delta.content
