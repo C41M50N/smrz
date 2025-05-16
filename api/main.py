@@ -88,9 +88,12 @@ def get_video_transcript(url: str) -> str:
     """
     video_id = get_youtube_video_id(url)
     ytt_api = YouTubeTranscriptApi()
-    transcript = ytt_api.fetch(video_id)
-    transcript_text = " ".join([t.text for t in transcript])
-    return transcript_text
+    try:
+        transcript = ytt_api.fetch(video_id)
+        transcript_text = " ".join([t.text for t in transcript])
+        return transcript_text
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch video transcript")
 
 
 # Regular expression patterns to match various YouTube URL formats
