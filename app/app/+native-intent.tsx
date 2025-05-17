@@ -9,17 +9,10 @@ export function redirectSystemPath({
 }) {
   try {
     if (path.includes(`dataUrl=${getShareExtensionKey()}`)) {
-      // redirect to the ShareIntent Screen to handle data with the hook
       console.debug(
-        "[expo-router-native-intent] redirect to ShareIntent screen",
+        "[expo-router-native-intent] redirect to shareintent screen",
       );
-      const intent = parseShareIntent(path, {});
-      console.debug(
-        "[expo-router-native-intent] ShareIntent data",
-        JSON.stringify(intent),
-        intent.webUrl,
-      );
-      return "/shareintent";
+      return "shareintent";
     }
     return path;
   } catch {
