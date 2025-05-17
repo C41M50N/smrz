@@ -92,8 +92,8 @@ def get_video_transcript(url: str) -> str:
         transcript = ytt_api.fetch(video_id)
         transcript_text = " ".join([t.text for t in transcript])
         return transcript_text
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch video transcript")
+    except Exception:
+        raise RuntimeError("Failed to fetch video transcript")
 
 
 # Regular expression patterns to match various YouTube URL formats
