@@ -1,6 +1,9 @@
-import re
 import os
+import re
+import urllib
 from typing import Generator
+
+import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -35,10 +38,11 @@ def summarize(url: str):
     try:
         if is_valid_youtube_url(url):
             content = get_video_transcript(url)
+            title = get_youtube_video_title(url)
         else:
-            content = get_text_content(url)
+            title, content = get_text_content(url)
 
-        summary = summarize_content(content)
+        summary = f"# {title}\n\n" + summarize_content(content)
         return {"summary": summary}
     except RuntimeError as e:
         return {"error": str(e)}
@@ -59,11 +63,12 @@ def summarize_stream(url: str):
     try:
         if is_valid_youtube_url(url):
             content = get_video_transcript(url)
+            title = get_youtube_video_title(url)
         else:
-            content = get_text_content(url)
+            title, content = get_text_content(url)
 
         return StreamingResponse(
-            summarize_content_stream(content),
+            summarize_content_stream(title, content),
             media_type="text/plain",
         )
     except RuntimeError as e:
@@ -72,14 +77,14 @@ def summarize_stream(url: str):
         return {"error": f"An error occurred: {str(e)}"}
 
 
-def get_text_content(url: str) -> str:
+def get_text_content(url: str) -> tuple[str, str]:
     """
     Extract text content from the given URL using Newspaper3k.
     """
     article = Article(url)
     article.download()
     article.parse()
-    return article.text
+    return (article.title, article.text)
 
 
 def get_video_transcript(url: str) -> str:
@@ -92,7 +97,8 @@ def get_video_transcript(url: str) -> str:
         transcript = ytt_api.fetch(video_id)
         transcript_text = " ".join([t.text for t in transcript])
         return transcript_text
-    except Exception:
+    except Exception as e:
+        print(f"Error fetching transcript: {e}")
         raise RuntimeError("Failed to fetch video transcript")
 
 
@@ -152,6 +158,28 @@ def get_youtube_video_id(url: str) -> str:
     raise RuntimeError("Invalid YouTube video URL or unable to extract video ID.")
 
 
+def get_youtube_video_title(url: str) -> str:
+    """
+    Extract the title of a YouTube video from its URL.
+
+    Args:
+        url (str): The YouTube video URL
+
+    Returns:
+        str: The title of the YouTube video or None if not found
+    """
+    # Method 1: Using oEmbed API (no API key required)
+    try:
+        oembed_url = (
+            f"https://www.youtube.com/oembed?url={urllib.parse.quote(url)}&format=json"
+        )
+        response = requests.get(oembed_url)
+        if response.status_code == 200:
+            return response.json()["title"]
+    except Exception:
+        raise RuntimeError("Failed to fetch video title")
+
+
 SYSTEM_PROMPT = """
 # IDENTITY and PURPOSE
 You are a summarization system that extracts the most interesting, useful, and surprising aspects of an article or video transcript.
@@ -189,11 +217,13 @@ def summarize_content(content: str) -> str:
     return response.choices[0].message.content
 
 
-def summarize_content_stream(content: str) -> Generator:
+def summarize_content_stream(title: str, content: str) -> Generator:
     """
     Summarize the given content using OpenAI's API. (Streaming version)
     This version is designed to handle larger content by streaming the response.
     """
+
+    yield f"# {title}\n\n"
 
     response = openai_client.chat.completions.create(
         model="gemini-2.0-flash",
