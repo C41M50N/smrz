@@ -12,7 +12,7 @@ export function redirectSystemPath({
       console.debug(
         "[expo-router-native-intent] redirect to shareintent screen",
       );
-      return "shareintent";
+      return "/";
     }
     return path;
   } catch {
