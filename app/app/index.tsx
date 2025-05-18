@@ -1,10 +1,11 @@
+import React from "react";
 import { useRouter } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
-import React, { useEffect } from "react";
-import { Button, Pressable, Share, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { SummaryView } from "components/SummaryView";
+import LoadingSpinner from "components/LoadingSpinner";
+import { Button } from "components/Button";
 import { fetchSummary } from "api";
-import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function Home() {
   const { hasShareIntent, shareIntent, error: intentError, resetShareIntent } = useShareIntentContext();
@@ -51,11 +52,11 @@ export default function Home() {
           <View className="bg-white flex items-center justify-center gap-y-4">
             <View className="w-full flex-col items-start justify-end gap-y-0">
               <Text className="text-gray-900 text-sm font-medium px-1 py-0.5">
-                URL
+                content url
               </Text>
-              <View className="w-full bg-gray-100 rounded border border-gray-300">
+              <View className="w-full px-3 py-3 bg-gray-100 rounded border border-gray-300">
                 <TextInput
-                  className="w-full px-3 py-4 text-base text-black"
+                  className="w-full text-black"
                   autoCapitalize="none"
                   autoCorrect={false}
                   value={text}
@@ -64,12 +65,13 @@ export default function Home() {
                 />
               </View>
             </View>
-            <Pressable
+            <Button
               onPress={() => resetShareIntent()}
+              loading={loading}
               className="w-full bg-black py-3 px-5 rounded mb-2 items-center"
             >
               <Text className="text-white font-bold text-base">summarize</Text>
-            </Pressable>
+            </Button>
             {error && (
               <Text className="text-red-500 text-center mb-2">
                 Error: {error}
@@ -78,11 +80,7 @@ export default function Home() {
           </View>
         </>
       )}
-      {loading && (
-        <View className="flex-1 items-center justify-center">
-          <AntDesign name="loading1" size={20} color="black" className="animate-spin" />
-        </View>
-      )}
+      {loading && <LoadingSpinner />}
       {hasShareIntent && content && title && shareIntent.webUrl && (
         <SummaryView
           title={title}
