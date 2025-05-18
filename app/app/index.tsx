@@ -2,10 +2,9 @@ import { useRouter } from "expo-router";
 import { useShareIntentContext } from "expo-share-intent";
 import React, { useEffect } from "react";
 import { Button, Pressable, Share, Text, TextInput, View } from "react-native";
-import Markdown from "react-native-marked";
-import Fontisto from '@expo/vector-icons/Fontisto';
-
-type SummaryResponse = { summary: string } | { error: string };
+import { SummaryView } from "components/SummaryView";
+import { fetchSummary } from "api";
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export default function Home() {
   const { hasShareIntent, shareIntent, error: intentError, resetShareIntent } = useShareIntentContext();
@@ -15,14 +14,14 @@ export default function Home() {
   const [error, setError] = React.useState<string | null>(intentError);
 
   const title = rawContent ? (rawContent.match(/^# (.+)$/m)?.[1] ?? null) : null;
-  const content = rawContent ? rawContent.replace(/^# (.+)$/m, "").replace("### SUMMARY:", "") : null;
+  const content = rawContent ? rawContent.replace(/^# (.+)$/m, "") : null;
 
   const [text, setText] = React.useState<string>("");
 
   React.useEffect(() => {
-    async function fetchSummary(url: string) {
+    async function loadSummary(url: string) {
       setLoading(true);
-      const response = await (await fetch(`http://127.0.0.1:8000/summarize?url=${encodeURIComponent(url)}`, { method: "GET" })).json() as SummaryResponse;
+      const response = await fetchSummary(url);
       if ("error" in response) {
         console.error("Error fetching summary:", response.error);
         setError(response.error);
@@ -32,19 +31,19 @@ export default function Home() {
       console.debug("Summary response:", response);
       setRawContent(response.summary);
       setLoading(false);
+      setError(null);
     }
     if (hasShareIntent && shareIntent.webUrl && !rawContent) {
       console.debug("Share Intent Web URL:", shareIntent.webUrl);
-      fetchSummary(shareIntent.webUrl);
+      loadSummary(shareIntent.webUrl);
     }
-    console.debug("hasShareIntent:", hasShareIntent);
   }, [hasShareIntent, shareIntent]);
 
   return (
     <View className="h-full p-0">
       {!hasShareIntent && (
         <>
-          <View className="h-2/5 flex items-center justify-center">
+          <View className="h-3/6 flex items-center justify-center">
             <Text className="text-3xl text-black font-bold text-center">
               smrz
             </Text>
@@ -79,41 +78,17 @@ export default function Home() {
           </View>
         </>
       )}
-      {hasShareIntent && content && title && (
-        <View className="pb-36">
-          <View className="flex flex-row items-center justify-between border-b border-gray-300 gap-2.5 mb-5">
-            <Text className="text-3xl font-semibold text-center mt-1 mb-2">
-              {title}
-            </Text>
-            {/* Share Button with Icon */}
-            <Pressable
-              onPress={async () => {
-                if (shareIntent.webUrl) {
-                  try {
-                    await Share.share({ title, message: `${title}\n${shareIntent.webUrl}` });
-                  } catch (err) {
-                    console.error("Share failed:", err);
-                  }
-                }
-              }}
-              accessibilityLabel="Share"
-              className="p-0 justify-center items-center rounded-full"
-            >
-              <Fontisto name="share" size={16} color="black" />
-            </Pressable>
-          </View>
-          <Markdown
-            value={content}
-            styles={{ // https://github.com/gmsgowtham/react-native-marked/blob/main/src/theme/types.ts
-              text: { color: "black", fontSize: 14, lineHeight: 20 },
-              paragraph: { paddingTop: 2, paddingBottom: 8 },
-              h3: { fontSize: 20, paddingTop: 6, paddingBottom: 0 },
-              list: { marginLeft: -6 },
-              li: { fontSize: 20, lineHeight: 20, paddingTop: 2.5, paddingBottom: 2.5 }, // fontSize = size of bullet points
-            }}
-            theme={{ spacing: { xs: 0, s: 0, m: 0, l: 0 } }}
-          />
+      {loading && (
+        <View className="flex-1 items-center justify-center">
+          <AntDesign name="loading1" size={20} color="black" className="animate-spin" />
         </View>
+      )}
+      {hasShareIntent && content && title && shareIntent.webUrl && (
+        <SummaryView
+          title={title}
+          markdown={content}
+          sourceUrl={shareIntent.webUrl}
+        />
       )}
     </View>
   );
