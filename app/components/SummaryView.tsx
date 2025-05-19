@@ -8,6 +8,11 @@ type SummaryViewProps = {
   sourceUrl: string;
 };
 
+// comments in the return statement breaks RN.... wtf
+// https://github.com/gmsgowtham/react-native-marked/blob/main/src/theme/types.ts
+// li fontSize = size of bullet points
+// font-reader does not work yet
+
 export function SummaryView({ title, markdown, sourceUrl }: SummaryViewProps) {
   return (
     <View className="pb-36">
@@ -29,15 +34,15 @@ export function SummaryView({ title, markdown, sourceUrl }: SummaryViewProps) {
           <Fontisto name="share" size={16} color="black" />
         </Pressable>
       </View>
-      <View className="font-reader"> {/* this doesn't work... */}
+      <View className="font-reader">
         <Markdown
           value={markdown}
-          styles={{ // https://github.com/gmsgowtham/react-native-marked/blob/main/src/theme/types.ts
+          styles={{
             text: { color: "black", fontSize: 14, lineHeight: 20, fontFamily: "Exile" },
             paragraph: { paddingTop: 2, paddingBottom: 8 },
             h3: { fontSize: 20, paddingTop: 6, paddingBottom: 0 },
             list: { marginLeft: -6 },
-            li: { fontSize: 20, lineHeight: 20, paddingTop: 2.5, paddingBottom: 2.5 }, // fontSize = size of bullet points
+            li: { fontSize: 20, lineHeight: 20, paddingTop: 2.5, paddingBottom: 2.5 },
           }}
           theme={{ spacing: { xs: 0, s: 0, m: 0, l: 0 } }}
         />

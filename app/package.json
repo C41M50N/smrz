@@ -12,6 +12,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.76.1",
     "clsx": "^2.1.1",
     "expo": "^53.0.9",
     "expo-constants": "~17.1.6",

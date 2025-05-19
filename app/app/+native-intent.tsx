@@ -1,4 +1,4 @@
-import { getShareExtensionKey, parseShareIntent } from "expo-share-intent";
+import { getShareExtensionKey } from "expo-share-intent";
 
 export function redirectSystemPath({
   path,
@@ -12,7 +12,7 @@ export function redirectSystemPath({
       console.debug(
         "[expo-router-native-intent] redirect to shareintent screen",
       );
-      return "/";
+      return "/summary-reader-intent";
     }
     return path;
   } catch {
