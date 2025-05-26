@@ -1,0 +1,66 @@
+<div>The Continuous Clean Code Process (CCCP) | Daniel's programming rants
+<noscript><style>#theme-toggle,.top-link{display:none}</style></noscript>
+<body id="top"><header class="header"><nav class="nav"><div class="logo"><a href="https://gerlacdt.github.io/blog" accesskey="h" title="Home (Alt + H)">Home</a>
+<span class="logo-switches"></span></div><ul id="menu"><li><a href="https://gerlacdt.github.io/blog/posts/" title="posts"><span>posts</span></a></li><li><a href="https://gerlacdt.github.io/blog/tags/" title="tags"><span>tags</span></a></li><li><a href="https://gerlacdt.github.io/blog/about" title="about"><span>about</span></a></li></ul></nav></header><article class="post-single"><header class="post-header"><div class="breadcrumbs"><a href="https://gerlacdt.github.io/blog">Home</a> » <a href="https://gerlacdt.github.io/blog/posts/">Posts</a></div><h1 class="post-title">The Continuous Clean Code Process (CCCP)</h1><div class="post-meta"><span title="2023-12-29 09:00:00 +0100 CET">December 29, 2023</span> · 4 min · Daniel Gerlach</div></header><div class="post-content"><p>Most software projects end up in a
+<a href="https://wiki.c2.com/?BigBallOfMud"><em>big ball of mud</em></a>. The major cause is
+neglecting internal quality and focusing on adding features with dirty hacks
+because of unrealistic timelines. Code has the natural tendency to erode if you
+don’t launch countermeasures permanently. This observation applies to all
+systems and is also known as the
+<a href="https://en.wikipedia.org/wiki/Second_law_of_thermodynamics">the second law of thermodynamics</a>:</p><blockquote><p>Systems tend to arrive at a state [&amp;mldr;] where the entropy is highest [&amp;mldr;]</p></blockquote><p>The only way to prevent a big ball of mud is to ingrain continuous refactoring
+into the software creation process, i.e. continuously writing clean code.
+Refactoring must be a regular task whereby it can happen before or after
+implementing a new feature itself:</p><blockquote><p><strong>Make it work, make it right, make it fast.</strong> - Kent Beck (refactor
+afterwards)</p></blockquote><blockquote><p><strong>Make the change easy (this can be hard), then make the easy change.</strong> - Kent
+Beck (refactor beforehand)</p></blockquote><p>Often teams code for months or years without touching and restructuring the
+existing codebase. They perpetually add features with dirty workarounds and
+without thinking about the overall structure. This accumulates and adding new
+functionality will become harder, and eventually impossible
+<a href="https://martinfowler.com/articles/is-quality-worth-cost.html">[1]</a></p><p align="center"><img src="/blog/img/clean_code_over_time.png" alt="clean_code_over_time" class="medium-zoom-image" width="600"></p><p>It is always better to stick to clean code and avoid shortcuts. Investing in
+internal quality is cheaper than adding cruft.
+<a href="https://martinfowler.com/bliki/TechnicalDebt.html">Cruft</a> makes the system
+harder to modify and is introduced due to laziness, time pressure or simply lack
+of knowledge. Beware of programmers who did not internalize clean code. In order
+to make the deadline, they integrate dirty hacks, workarounds or skip tests.
+They justify their actions with flimsy arguments. Worse yet, because the
+management is not aware of internal quality, the milestone is perceived as a
+success and dirty developers are sometimes celebrated as heros. In consequence
+of such bad incentives, the codebase will deteriorate quickly since dirty
+developers gain the upper hand and quality-focused developers are ignored (and
+leave the company). The epitome of such bad developers are
+<a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">tactical tornados</a> – loved
+by the management, hated by fellow team members.</p><p><strong>The big problem with cruft is that it comes silently and sneaks into the
+codebase over time.</strong> There will be no single decision which turns a codebase
+into a big ball of mud all of a sudden. Instead daily tiny decisions bring the
+system slowly into an unmaintainable state and the problem will only be detected
+when it is too late and the pain is severe. More often than not, the only rescue
+is a complete rewrite of the application.</p><p>One of the biggest mistakes developers can make is skipping tests due to time
+pressure. If a developer team made the milestone, everybody is happy and the
+team is rewarded. This leads to a positive feedback loop which exacerbates the
+situation: the developers will regularly skip tests or generally write bad code
+since they get rewarded by the clueless management. Bad developers bring up the
+idea to skip tests themselves because they believe they are faster without
+tests. This is a fallacy! As soon other developers need to make a change, they
+will be slowed down immensely and bugs are introduced easily. Even the original
+authors will struggle with their own code without tests when they have not
+looked into it for some time. <strong>A good test suite act as a safety net and gives
+guidance how to use the API. All developers benefit from it, introduce less bugs
+and are faster.</strong></p><blockquote><p>The only way to go fast, is to go well. - Uncle Bob</p></blockquote><h3 id="span-stylecolor-redattentionspan"><span>Attention!!!</span><a class="anchor" href="#span-stylecolor-redattentionspan">#</a></h3><p>Is refactoring always the right way? <em>It depends</em>. Some developers tend to
+overdo things like over-engineering, gold-plating and over-refactoring. Be
+vigilant, don’t fall into the trap doing weeks or months of refactoring without
+new features. This is not refactoring but most probably a rewrite of an
+application. Refactoring and adding new functionality should be in balance.
+Finding a balance is a discussion between
+<a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">tactical vs strategic programming</a>.
+Investing 10-20% of time into code improvements is a good starting point.</p><h3 id="final-thoughts">Final Thoughts<a class="anchor" href="#final-thoughts">#</a></h3><p>Practicing the <em>Continuous Clean Code Process</em> (CCCP) is critical to prevent a
+big ball of mud. Through continuous refactorings, not only codebases stay clean,
+they are fun and as a side-effect teams end up with a maintainable codebase
+which is a pleasure to work with. Developer happiness will be high. <strong>A clean
+codebase builds the foundation for fast development over time and high-quality
+products.</strong> Organizations will also profit since happy developers are more
+productive and attract even more good developers. Finally there is no excuse to
+write bad code 😄 – but it is still hard.</p><h3 id="star-wars-fun-facts">Star Wars Fun Facts<a class="anchor" href="#star-wars-fun-facts">#</a></h3><p>CCCP is also known as C3-PO.</p><h3 id="references">References<a class="anchor" href="#references">#</a></h3><ol><li><a href="https://martinfowler.com/articles/is-quality-worth-cost.html">Is High Quality Software Worth the Cost? - Martin Fowler</a></li><li><a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">A Philosophy of Software Design - John Ousterhout</a></li></ol></div><footer class="post-footer"><ul class="post-tags"><li><a href="https://gerlacdt.github.io/blog/tags/programming/">programming</a></li><li><a href="https://gerlacdt.github.io/blog/tags/softwareengineering/">softwareengineering</a></li></ul><nav class="paginav"><a class="prev" href="https://gerlacdt.github.io/blog/posts/clean_code/"><span class="title">« Prev Page</span><br><span>Clean Code: The Good, the Bad and the Ugly</span></a>
+<a class="next" href="https://gerlacdt.github.io/blog/posts/production-readiness-checklist/"><span class="title">Next Page »</span><br><span>Production Readiness Checklist</span></a></nav><div class="share-buttons"><a target="_blank" rel="noopener noreferrer" href="https://twitter.com/intent/tweet/?text=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f&amp;hashtags=programming%2csoftwareengineering"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f&amp;title=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;summary=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;source=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://reddit.com/submit?url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f&amp;title=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://api.whatsapp.com/send?text=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29%20-%20https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://telegram.me/share/url?text=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a></div></footer></article><footer class="footer"><span>© 2025 <a href="https://gerlacdt.github.io/blog">Daniel's programming rants</a></span>
+<span>Powered by
+<a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &amp;
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a></span></footer><a href="#top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g"><svg></svg></a></body></div>
