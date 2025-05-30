@@ -1,51 +1,29 @@
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-from utils import (
-    convert_to_markdown,
-    improve_transcript_readability,
-    summarize_content,
+from fastapi import APIRouter
+
+from app.article.actions import (
+    article_to_markdown,
     get_article_title,
+)
+from app.common.actions import (
     get_clean_html,
+    summarize_content,
+)
+from app.video.actions import (
     get_video_transcript,
     get_youtube_video_title,
+    improve_transcript_readability,
     is_valid_youtube_url,
 )
 
-load_dotenv()
-
-app = FastAPI()
+router = APIRouter()
 
 
-@app.get("/")
+@router.get("/")
 def index():
     return "fine, i'll do it myself"
 
 
-@app.get("/mkdn")
-def markdown(url: str):
-    """
-    Test if the given URL is valid.
-    """
-    # Check if url is valid
-    if not url.startswith(("http://", "https://")):
-        return {"error": "Invalid URL. Please provide a valid URL."}
-
-    try:
-        title = get_article_title(url)
-        html = get_clean_html(url)
-        with open("article.html", "w") as f:
-            f.write(html)
-        markdown = convert_to_markdown(url, html)
-        print(markdown)
-        return {"title": title, "content": markdown}
-    except RuntimeError as e:
-        return {"error": str(e)}
-    except Exception as e:
-        return JSONResponse({"error": f"An error occurred: {str(e)}"}, status_code=500)
-
-
-@app.get("/summarize")
+@router.get("/smrz")
 def summarize(url: str):
     """
     Summarize the content from the given URL.
@@ -63,7 +41,7 @@ def summarize(url: str):
         else:
             title = get_article_title(url)
             html = get_clean_html(url)
-            content = convert_to_markdown(url, html)
+            content = article_to_markdown(url, html)
             print(f"Article Title: {title}\nContent:\n{content}")
 
         summary = f"# {title}\n\n" + summarize_content(content)
