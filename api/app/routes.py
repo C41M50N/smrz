@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, status
+from fastapi.responses import JSONResponse
 
 from app.article.actions import (
     article_to_markdown,
@@ -46,8 +47,17 @@ def summarize(url: str):
 
         summary = f"# {title}\n\n" + summarize_content(content)
         print(f"\nSummary:\n{summary}")
-        return {"summary": summary}
+        return JSONResponse(
+            {"title": title, "content": content, "summary": summary},
+            status_code=status.HTTP_200_OK,
+        )
     except RuntimeError as e:
-        return {"error": str(e)}
+        return JSONResponse(
+            {"error": str(e)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     except Exception as e:
-        return {"error": f"An error occurred: {str(e)}"}
+        return JSONResponse(
+            {"error": f"An unexpected error occurred: {str(e)}"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
