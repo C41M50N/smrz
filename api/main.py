@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from api.utils import (
+from utils import (
     convert_to_markdown,
+    improve_transcript_readability,
     summarize_content,
     get_article_title,
     get_clean_html,
@@ -18,7 +19,7 @@ app = FastAPI()
 
 @app.get("/")
 def index():
-    return "Hello, World!"
+    return "fine, i'll do it myself"
 
 
 @app.get("/mkdn")
@@ -55,15 +56,18 @@ def summarize(url: str):
 
     try:
         if is_valid_youtube_url(url):
-            content = get_video_transcript(url)
             title = get_youtube_video_title(url)
+            transcript = get_video_transcript(url)
+            content = improve_transcript_readability(transcript, title)
+            print(f"Video Title: {title}\nTranscript:\n{content}")
         else:
             title = get_article_title(url)
             html = get_clean_html(url)
             content = convert_to_markdown(url, html)
-            print(content)
+            print(f"Article Title: {title}\nContent:\n{content}")
 
         summary = f"# {title}\n\n" + summarize_content(content)
+        print(f"\nSummary:\n{summary}")
         return {"summary": summary}
     except RuntimeError as e:
         return {"error": str(e)}
