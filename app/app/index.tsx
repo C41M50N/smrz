@@ -1,13 +1,14 @@
 import React from "react";
 import { useRouter } from "expo-router";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { Container } from "components/Container";
 
 export default function Home() {
   const router = useRouter();
   const [text, setText] = React.useState<string>("");
 
   return (
-    <View className="h-full p-0">
+    <Container className="h-full p-0">
       <View className="h-3/6 flex items-center justify-center">
         <Text className="text-3xl text-black font-bold text-center">
           smrz
@@ -18,7 +19,7 @@ export default function Home() {
           <Text className="text-gray-900 text-sm font-medium px-1 py-0.5">
             content url
           </Text>
-          <View className="w-full px-3 py-3 bg-gray-100 rounded border border-gray-300">
+          <View className="w-full px-3 py-3 bg-gray-50 rounded border border-gray-300">
             <TextInput
               className="w-full text-black"
               autoCapitalize="none"
@@ -43,6 +44,6 @@ export default function Home() {
           <Text className="text-white font-bold text-base">summarize</Text>
         </Pressable>
       </View>
-    </View>
+    </Container>
   );
 }

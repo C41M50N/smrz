@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '../global.css';
-import { Container } from 'components/Container';
 import { Slot, useRouter } from "expo-router";
 import { ShareIntentProvider } from "expo-share-intent";
 import { StatusBar } from 'expo-status-bar';
@@ -23,9 +22,7 @@ export default function Layout() {
       }}
     >
       <QueryClientProvider client={queryClient}>
-        <Container>
-          <Slot />
-        </Container>
+        <Slot />
       </QueryClientProvider>
       <StatusBar style="auto" />
     </ShareIntentProvider>
