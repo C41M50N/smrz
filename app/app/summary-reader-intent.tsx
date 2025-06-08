@@ -37,33 +37,47 @@ export default function SummaryReaderIntentPage() {
 
   const url = shareIntent.webUrl;
   // const title = data ? (data.summary.match(/^# (.+)$/m)?.[1] ?? null) : null;
-  const content = data ? data.content.replace(/^# (.+)$/m, "") : null;
-  const summary = data ? data.summary.replace(/^# (.+)$/m, "") : null;
+  const content = data ? data.content.replace(/^# (.+)$/m, "").concat("\n## \n") : null;
+  const summary = data ? data.summary.replace(/^# (.+)$/m, "").concat("\n## \n") : null;
 
   return (
     <View className="h-full p-0">
       <SafeAreaView>
-        {(isLoading || isIntentLoading) && <LoadingSpinner />}
+        {(isLoading || isIntentLoading) && (
+          <View className="h-full items-center justify-center">
+            <LoadingSpinner />
+          </View>
+        )}
         {error && (
-          <View className="flex-1 items-center justify-center">
-            <Text className="text-red-500">{error.message}</Text>
-            <Button
-              className="mt-4"
+          <View className="h-full items-center justify-center gap-4">
+            <Text className="text-base text-red-600">{error.message}</Text>
+            <Pressable
+              className="bg-gray-200 px-4 py-2 rounded"
+              accessibilityLabel="Go Back"
+              accessibilityHint="Return to the home page"
+              accessibilityRole="button"
               onPress={() => router.replace("/")}
             >
-              Go Back
-            </Button>
+              <Text className="text-gray-800 font-semibold">
+                Go Back
+              </Text>
+            </Pressable>
           </View>
         )}
         {intentError && (
           <View className="flex-1 items-center justify-center">
             <Text className="text-red-500">{intentError}</Text>
-            <Button
-              className="mt-4"
+            <Pressable
+              className="bg-gray-200 px-4 py-2 rounded"
+              accessibilityLabel="Go Back"
+              accessibilityHint="Return to the home page"
+              accessibilityRole="button"
               onPress={() => router.replace("/")}
             >
-              Go Back
-            </Button>
+              <Text className="text-gray-800 font-semibold">
+                Go Back
+              </Text>
+            </Pressable>
           </View>
         )}
         {url && data && (

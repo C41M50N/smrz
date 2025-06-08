@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchSummary } from "api";
-import { Button } from "components/Button";
 import { Container } from "components/Container";
 import LoadingSpinner from "components/LoadingSpinner";
 import { MarkdownViewer } from "components/MarkdownViewer";
@@ -22,7 +21,7 @@ export default function SummaryReaderPage() {
     if (!url) router.replace("/");
   }, [url]);
 
-  const { data, error, isLoading } = useQuery({
+  const { data, error, isLoading, refetch } = useQuery({
     queryKey: ["summary", url],
     queryFn: () => fetchSummary(url!),
     staleTime: Infinity,
@@ -30,22 +29,44 @@ export default function SummaryReaderPage() {
   });
 
   // const title = data ? (data.summary.match(/^# (.+)$/m)?.[1] ?? null) : null;
-  const content = data ? data.content.replace(/^# (.+)$/m, "") : null;
-  const summary = data ? data.summary.replace(/^# (.+)$/m, "") : null;
+  const content = data ? data.content.replace(/^# (.+)$/m, "").concat("\n## \n") : null;
+  const summary = data ? data.summary.replace(/^# (.+)$/m, "").concat("\n## \n") : null;
 
   return (
     <View className="h-full p-0 m-0">
       <SafeAreaView>
-        {isLoading && <LoadingSpinner />}
+        {isLoading && (
+          <View className="h-full items-center justify-center">
+            <LoadingSpinner />
+          </View>
+        )}
         {error && (
-          <View className="flex-1 items-center justify-center">
-            <Text className="text-red-500">{error.message}</Text>
-            <Button
-              className="mt-4"
-              onPress={() => router.replace("/")}
-            >
-              Go Back
-            </Button>
+          <View className="h-full items-center justify-center gap-4">
+            <Text className="text-base text-red-600">{error.message}</Text>
+            <View className="flex flex-row gap-2">
+              <Pressable
+                className="bg-gray-200 px-4 py-2 rounded"
+                accessibilityLabel="Go Back"
+                accessibilityHint="Return to the home page"
+                accessibilityRole="button"
+                onPress={() => router.replace("/")}
+              >
+                <Text className="text-gray-800 font-semibold">
+                  Go Back
+                </Text>
+              </Pressable>
+              <Pressable
+                className="bg-gray-200 px-4 py-2 rounded"
+                accessibilityLabel="Try Again"
+                accessibilityHint="Try to summarize the content again"
+                accessibilityRole="button"
+                onPress={() => refetch()}
+              >
+                <Text className="text-gray-800 font-semibold">
+                  Try Again
+                </Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -59,7 +80,7 @@ export default function SummaryReaderPage() {
               >
                 <Ionicons name="arrow-back" size={22} color="black" />
               </Pressable>
-              <Text className="px-2 text-xl font-semibold text-center line-clamp-1">
+              <Text className="w-full px-2 text-xl font-semibold text-center line-clamp-1">
                 {data.title}
               </Text>
               <Pressable

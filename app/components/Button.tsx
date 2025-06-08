@@ -22,7 +22,7 @@ export function Button({ onPress, disabled, loading, className, children }: Butt
         className
       )}
     >
-      {children} {loading && <LoadingSpinner className="absolute right-2" />}
+      {children}{loading && <LoadingSpinner className="absolute right-2" />}
     </Pressable>
   );
 }

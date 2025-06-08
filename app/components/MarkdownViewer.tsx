@@ -18,6 +18,7 @@ export function MarkdownViewer({ markdown }: MarkdownViewerProps) {
         styles={{
           text: { color: "black", fontSize: 14, lineHeight: 20, fontFamily: "Exile" },
           paragraph: { paddingTop: 2, paddingBottom: 8 },
+          h1: { borderBottomWidth: 0 },
           h2: { fontSize: 20, paddingTop: 6, paddingBottom: 2, borderBottomWidth: 0, lineHeight: 28 },
           h3: { fontSize: 16, paddingTop: 6, paddingBottom: 2, lineHeight: 24 },
           list: { marginLeft: -6 },
