@@ -1,19 +1,19 @@
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-from app.article.actions import (
-    article_to_markdown,
+from app.lib.summarization import summarize_content
+from app.lib.article_content import (
     get_article_title,
+    article_to_markdown,
 )
-from app.common.actions import (
-    get_clean_html,
-    summarize_content,
-)
-from app.video.actions import (
-    get_video_transcript,
-    get_youtube_video_title,
-    improve_transcript_readability,
-    is_valid_youtube_url,
+from app.lib.video_content import get_video_transcript, get_youtube_video_title
+from app.lib.transcription import VideoTranscriber
+
+
+from app.utils import (
+    is_youtube_url,
+    is_direct_audio_url,
+    is_direct_video_url,
 )
 
 router = APIRouter()
@@ -34,18 +34,29 @@ def summarize(url: str):
         return {"error": "Invalid URL. Please provide a valid URL."}
 
     try:
-        if is_valid_youtube_url(url):
-            title = get_youtube_video_title(url)
-            transcript = get_video_transcript(url)
-            content = improve_transcript_readability(transcript, title)
-            print(f"Video Title: {title}\nTranscript:\n{content}")
+        if is_youtube_url(url) or is_direct_video_url(url) or is_direct_audio_url(url):
+            video_transcriber = VideoTranscriber(
+                transcript_readability_llm_client=OpenRouterLLMClient,
+                transcript_readability_model=OpenRouterModel.GEMINI_2_5_FLASH_PREVIEW,
+            )
+            title = None
+            if is_youtube_url(url):
+                title = get_youtube_video_title(url)
+
+            content = get_video_transcript(video_transcriber, url)
         else:
             title = get_article_title(url)
-            html = get_clean_html(url)
-            content = article_to_markdown(url, html)
-            print(f"Article Title: {title}\nContent:\n{content}")
+            content = article_to_markdown(
+                llm_client=OpenRouterLLMClient,
+                model=OpenRouterModel.GEMINI_2_5_FLASH_PREVIEW,
+                url=url,
+            )
 
-        summary = f"# {title}\n\n" + summarize_content(content)
+        summary = f"# {title}\n\n" + summarize_content(
+            llm_client=OpenRouterLLMClient,
+            model=OpenRouterModel.GEMINI_2_5_FLASH_PREVIEW,
+            content=content,
+        )
         print(f"\nSummary:\n{summary}")
         return JSONResponse(
             {"title": title, "content": content, "summary": summary},
