@@ -1,15 +1,16 @@
+import sys
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-from app.lib.summarization import summarize_content
+from app.lib.llm_client import LLMClient, Models
+from app.lib.summarization import SUMMARIZE_PROMPT_1, summarize_content
 from app.lib.article_content import (
+    ARTICLE_TO_MARKDOWN_PROMPT_2,
     get_article_title,
     article_to_markdown,
 )
 from app.lib.video_content import get_video_transcript, get_youtube_video_title
-from app.lib.transcription import VideoTranscriber
-
-
+from app.lib.transcription import IMPROVE_TRANSCRIPT_PROMPT_1, VideoTranscriber
 from app.utils import (
     is_youtube_url,
     is_direct_audio_url,
@@ -36,8 +37,10 @@ def summarize(url: str):
     try:
         if is_youtube_url(url) or is_direct_video_url(url) or is_direct_audio_url(url):
             video_transcriber = VideoTranscriber(
-                transcript_readability_llm_client=OpenRouterLLMClient,
-                transcript_readability_model=OpenRouterModel.GEMINI_2_5_FLASH_PREVIEW,
+                transcript_readability_llm_client=LLMClient(
+                    model=Models.GEMINI_2_5_FLASH_LITE_PREVIEW,
+                    system_prompt=IMPROVE_TRANSCRIPT_PROMPT_1,
+                ),
             )
             title = None
             if is_youtube_url(url):
@@ -47,14 +50,18 @@ def summarize(url: str):
         else:
             title = get_article_title(url)
             content = article_to_markdown(
-                llm_client=OpenRouterLLMClient,
-                model=OpenRouterModel.GEMINI_2_5_FLASH_PREVIEW,
+                llm_client=LLMClient(
+                    model=Models.GEMINI_2_5_PRO,
+                    system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_2,
+                ),
                 url=url,
             )
 
         summary = f"# {title}\n\n" + summarize_content(
-            llm_client=OpenRouterLLMClient,
-            model=OpenRouterModel.GEMINI_2_5_FLASH_PREVIEW,
+            llm_client=LLMClient(
+                model=Models.GEMINI_2_5_FLASH_LITE_PREVIEW,
+                system_prompt=SUMMARIZE_PROMPT_1,
+            ),
             content=content,
         )
         print(f"\nSummary:\n{summary}")

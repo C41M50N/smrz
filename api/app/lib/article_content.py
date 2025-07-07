@@ -22,7 +22,6 @@ def article_to_markdown(llm_client: LLMClient, url: str) -> str:
         if not html:
             raise RuntimeError("Failed to clean HTML content")
         response = llm_client.generate_response(
-            system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_2,
             user_prompt=f"Convert the following article HTML (found at {url}) to Markdown: {html}",
             temp=585 / 1000,
         )

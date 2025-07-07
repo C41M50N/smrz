@@ -121,12 +121,11 @@ class VideoTranscriber:
         if "text" not in result:
             raise RuntimeError("Transcription failed.")
 
-        return result["text"].strip()
+        return str(result["text"]).strip()
 
     def _improve_transcript_readability(self, transcript: str) -> str:
         try:
             response = self.transcript_readability_llm_client.generate_response(
-                system_prompt=IMPROVE_TRANSCRIPT_PROMPT_1,
                 user_prompt=f"Improve the readability of the following video transcript: {transcript}",
                 temp=825 / 1000,
             )

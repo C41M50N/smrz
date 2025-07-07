@@ -5,7 +5,6 @@ from app.utils import clean_markdown
 def summarize_content(llm_client: LLMClient, content: str) -> str:
     try:
         response = llm_client.generate_response(
-            system_prompt=SUMMARIZE_PROMPT_1,
             user_prompt=f"Summarize the following content: {content}",
             temp=585 / 1000,
         )

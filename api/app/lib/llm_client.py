@@ -101,8 +101,9 @@ class LLMClientResponse(BaseModel):
 
 
 class LLMClient:
-    def __init__(self, model: Models):
+    def __init__(self, model: Models, system_prompt: str):
         self.model = model
+        self.system_prompt = system_prompt
         self.provider = self._get_provider()
         self.client = self._get_client()
 
@@ -122,16 +123,14 @@ class LLMClient:
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
-    def generate_response(
-        self, system_prompt: str, user_prompt: str, temp: float = 0.7
-    ):
+    def generate_response(self, user_prompt: str, temp: float = 0.7):
         start_time = time.time()
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=temp,
@@ -155,11 +154,11 @@ class LLMClient:
             response_time=response_time,
             cost=(
                 (
-                    (len(usage.input_tokens) / 1_000_000)  # type: ignore
+                    (usage.prompt_tokens / 1_000_000)  # type: ignore
                     * MODEL_REGISTRY[self.model]["cost_per_1M_input_tokens"]
                 )
                 + (
-                    (len(usage.output_tokens) / 1_000_000)  # type: ignore
+                    (usage.completion_tokens / 1_000_000)  # type: ignore
                     * MODEL_REGISTRY[self.model]["cost_per_1M_output_tokens"]
                 )
             ),
