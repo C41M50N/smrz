@@ -1,6 +1,8 @@
+import datetime
 import re
 import requests
 from lxml_html_clean import Cleaner
+from dateutil import parser
 
 #############################################################################
 ################################# YOUTUBE ###################################
@@ -110,3 +112,26 @@ def is_direct_video_url(url: str) -> bool:
     Check if the given URL is a direct link to a video file.
     """
     return url.lower().endswith((".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv"))
+
+
+def get_json_from_url(url: str) -> dict[str, str]:
+    """
+    Fetch JSON data from a URL.
+    """
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch JSON from {url}: {e}")
+
+
+def parse_date(date_str: str) -> datetime.date:
+    """
+    Parse a date string into a datetime.date object.
+    Uses dateutil.parser for flexibility in date formats.
+    """
+    try:
+        return parser.parse(date_str, fuzzy=True).date()
+    except Exception as e:
+        raise ValueError(f"Failed to parse date '{date_str}': {e}")

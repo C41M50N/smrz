@@ -2,9 +2,10 @@ from enum import StrEnum
 import os
 import time
 
+import instructor
 from openai import OpenAI
 from pydantic import BaseModel
-from typing import TypedDict
+from typing import Type, TypedDict
 
 
 class Models(StrEnum):
@@ -93,8 +94,8 @@ OPENROUTER_CLIENT = OpenAI(
 )
 
 
-class LLMClientResponse(BaseModel):
-    content: str
+class LLMClientResponse[T = str](BaseModel):
+    content: T
     response_time: float
     provider: str
     cost: float
@@ -106,6 +107,7 @@ class LLMClient:
         self.system_prompt = system_prompt
         self.provider = self._get_provider()
         self.client = self._get_client()
+        self.instructor_client = instructor.from_openai(self.client)
 
     def _get_provider(self):
         try:
@@ -123,7 +125,9 @@ class LLMClient:
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
-    def generate_response(self, user_prompt: str, temp: float = 0.7):
+    def generate_response(
+        self, user_prompt: str, temp: float = 0.7
+    ) -> LLMClientResponse:
         start_time = time.time()
 
         try:
@@ -149,9 +153,53 @@ class LLMClient:
             raise RuntimeError("Response usage information is missing")
 
         return LLMClientResponse(
-            provider=self.provider,
             content=content,
             response_time=response_time,
+            provider=self.provider,
+            cost=(
+                (
+                    (usage.prompt_tokens / 1_000_000)  # type: ignore
+                    * MODEL_REGISTRY[self.model]["cost_per_1M_input_tokens"]
+                )
+                + (
+                    (usage.completion_tokens / 1_000_000)  # type: ignore
+                    * MODEL_REGISTRY[self.model]["cost_per_1M_output_tokens"]
+                )
+            ),
+        )
+
+    def generate_structured_response(
+        self, OutputSchema: Type[BaseModel], user_prompt: str, temp: float = 0.7
+    ) -> LLMClientResponse[BaseModel]:
+        start_time = time.time()
+
+        try:
+            response = self.client.responses.parse(
+                model=self.model,
+                input=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=temp,
+                text_format=OutputSchema,
+            )
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate response: {str(e)}")
+
+        response_time = time.time() - start_time
+
+        content = response.output_parsed
+        if not content:
+            raise RuntimeError("Failed to generate response")
+
+        usage = response.usage
+        if not usage:
+            raise RuntimeError("Response usage information is missing")
+
+        return LLMClientResponse[BaseModel](
+            content=content,
+            response_time=response_time,
+            provider=self.provider,
             cost=(
                 (
                     (usage.prompt_tokens / 1_000_000)  # type: ignore

@@ -1,16 +1,8 @@
+import datetime
 from newspaper import Article
+from pydantic import BaseModel
 from app.lib.llm_client import LLMClient
-from app.utils import clean_markdown, get_clean_html
-
-
-def get_article_title(url: str) -> str:
-    """
-    Extract the title of an article from its URL using Newspaper3k.
-    """
-    article = Article(url)
-    article.download()
-    article.parse()
-    return article.title
+from app.utils import clean_markdown, get_clean_html, parse_date
 
 
 def article_to_markdown(llm_client: LLMClient, url: str) -> str:
@@ -28,6 +20,42 @@ def article_to_markdown(llm_client: LLMClient, url: str) -> str:
         return clean_markdown(response.content)
     except Exception as e:
         raise RuntimeError(f"Failed to convert HTML to Markdown: {e}") from e
+
+
+class ArticleMetadata(BaseModel):
+    title: str | None = None
+    author: str | None = None
+    published_date: datetime.date | None = None
+    favicon: str | None = None
+    meta_image: str | None = None
+
+
+def extract_article_metadata(url: str) -> ArticleMetadata:
+    """
+    Extract metadata from an article using Newspaper3k.
+    """
+    article = Article(url)
+    article.download()
+    article.parse()
+
+    published_date = article.publish_date
+    if isinstance(published_date, str):
+        try:
+            published_date = parse_date(published_date)
+        except ValueError:
+            published_date = None
+    elif isinstance(published_date, datetime.datetime):
+        published_date = published_date.date()
+    elif not isinstance(published_date, datetime.datetime):
+        published_date = None
+
+    return ArticleMetadata(
+        title=article.title,
+        author=", ".join(article.authors) if article.authors else None,
+        published_date=published_date,
+        favicon=article.meta_favicon,
+        meta_image=article.meta_img,
+    )
 
 
 ARTICLE_TO_MARKDOWN_PROMPT_2 = """

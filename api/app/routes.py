@@ -5,10 +5,10 @@ from app.lib.llm_client import LLMClient, Models
 from app.lib.summarization import SUMMARIZE_PROMPT_1, summarize_content
 from app.lib.article_content import (
     ARTICLE_TO_MARKDOWN_PROMPT_2,
-    get_article_title,
+    extract_article_metadata,
     article_to_markdown,
 )
-from app.lib.video_content import get_video_transcript, get_youtube_video_title
+from app.lib.video_content import extract_video_metadata, get_video_transcript
 from app.lib.transcription import IMPROVE_TRANSCRIPT_PROMPT_1, VideoTranscriber
 from app.utils import (
     is_youtube_url,
@@ -41,13 +41,13 @@ def summarize(url: str):
                     system_prompt=IMPROVE_TRANSCRIPT_PROMPT_1,
                 ),
             )
-            title = None
-            if is_youtube_url(url):
-                title = get_youtube_video_title(url)
 
+            metadata = extract_video_metadata(url)
+            title = metadata.title
             content = get_video_transcript(video_transcriber, url)
         else:
-            title = get_article_title(url)
+            metadata = extract_article_metadata(url)
+            title = metadata.title
             content = article_to_markdown(
                 llm_client=LLMClient(
                     model=Models.GEMINI_2_5_PRO,
@@ -65,7 +65,11 @@ def summarize(url: str):
         )
         print(f"\nSummary:\n{summary}")
         return JSONResponse(
-            {"title": title, "content": content, "summary": summary},
+            {
+                "metadata": metadata.model_dump(mode="json"),
+                "content": content,
+                "summary": summary,
+            },
             status_code=status.HTTP_200_OK,
         )
     except RuntimeError as e:
