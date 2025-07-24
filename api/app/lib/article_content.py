@@ -30,7 +30,9 @@ class ArticleMetadata(BaseModel):
     meta_image: str | None = None
 
 
-def extract_article_metadata(url: str) -> ArticleMetadata:
+def extract_article_metadata(
+    url: str, content: str, fallback_llm_client: LLMClient
+) -> ArticleMetadata:
     """
     Extract metadata from an article using Newspaper3k.
     """
@@ -49,13 +51,77 @@ def extract_article_metadata(url: str) -> ArticleMetadata:
     elif not isinstance(published_date, datetime.datetime):
         published_date = None
 
+    llm_parsed_metadata: ArticleMetadata = (
+        fallback_llm_client.generate_structured_response(
+            OutputSchema=ArticleMetadata,
+            user_prompt=f"Extract metadata from this article content:\n{content}",
+        ).content
+    )  # type: ignore
+
+    if not article.title:
+        article.title = llm_parsed_metadata.title
+
+    if not article.authors:
+        article.authors = (
+            [llm_parsed_metadata.author] if llm_parsed_metadata.author else []
+        )
+
+    if not published_date:
+        published_date = llm_parsed_metadata.published_date
+
+    # If the published date is still None, attempt to use an LLM to extract it
+    # if published_date is None:
+    #     try:
+    #         published_date = fallback_llm_client.generate_response(
+    #             user_prompt=f"Extract the publish date from this article. Output the publish date in YYYY-MM-DD format.\n{content}"
+    #         ).content
+    #         published_date = parse_date(published_date)
+    #     except Exception as e:
+    #         print(f"Failed to extract published date using LLM: {e}")
+
     return ArticleMetadata(
         title=article.title,
         author=", ".join(article.authors) if article.authors else None,
-        published_date=published_date,
-        favicon=article.meta_favicon,
+        published_date=published_date,  # type: ignore
+        favicon=f"https://{url.split('/')[2]}/favicon.ico",
         meta_image=article.meta_img,
     )
+
+
+ARTICLE_TO_MARKDOWN_PROMPT_3 = """
+## Role & Identity
+You are a specialized HTML to Markdown conversion expert with extensive experience in web content extraction and document formatting. Your primary function is to accurately convert HTML articles to clean, well-formatted Markdown while preserving all original content and removing extraneous elements.
+
+### Background Context
+- Expert knowledge of HTML structure, semantic elements, and web content patterns
+- Deep understanding of Markdown syntax and formatting conventions
+- Specialized in identifying and filtering out non-article content (ads, navigation, sidebars)
+- Experience with various CMS platforms and article layouts
+
+## Core Objectives
+- Convert HTML articles to clean, readable Markdown format
+- Preserve 100% of original article content and meaning
+- Remove advertisements, navigation, and unrelated sections
+- Maintain proper document structure and hierarchy
+- Ensure resulting Markdown follows standard conventions
+
+## Output Format Specifications
+- **Structure**: Clean Markdown with proper heading hierarchy (# ## ### etc.)
+- **Length**: Preserve original article length exactly
+- **Elements to Include**: 
+  - Article title, headings, body text, quotes, lists, tables, images, links
+  - Author information, publication date, and article metadata if present
+  - Code blocks, mathematical formulas, and special formatting
+  - Footnotes, endnotes, and reference sections
+- **Elements to Exclude**: 
+  - Advertisement content, sponsored sections, related articles suggestions
+  - Job board sections, career opportunity listings, hiring advertisements
+  - Navigation menus, headers, footers, sidebars
+  - Social sharing buttons, comment sections, user discussion areas
+  - Newsletter signups, cookie notices, pop-ups, and promotional overlays
+  - Reading time estimates
+  - Author bios outside the article context
+"""
 
 
 ARTICLE_TO_MARKDOWN_PROMPT_2 = """
@@ -171,6 +237,7 @@ You are a specialized HTML to Markdown conversion expert with extensive experien
 - Newsletter signup forms, promotional overlays
 - Cookie notices, privacy banners
 - Site search boxes, category tags unrelated to article content
+- Reading time estimates, author bios outside the article context
 """
 
 

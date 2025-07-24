@@ -1,10 +1,12 @@
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
+from app import utils
 from app.lib.llm_client import LLMClient, Models
 from app.lib.summarization import SUMMARIZE_PROMPT_1, summarize_content
 from app.lib.article_content import (
     ARTICLE_TO_MARKDOWN_PROMPT_2,
+    ARTICLE_TO_MARKDOWN_PROMPT_3,
     extract_article_metadata,
     article_to_markdown,
 )
@@ -43,27 +45,41 @@ def summarize(url: str):
             )
 
             metadata = extract_video_metadata(url)
-            title = metadata.title
             content = get_video_transcript(video_transcriber, url)
         else:
-            metadata = extract_article_metadata(url)
-            title = metadata.title
+            metadata = extract_article_metadata(
+                url=url,
+                content=utils.get_clean_html(url),
+                fallback_llm_client=LLMClient(
+                    model=Models.GPT_4_1_NANO_2025_04_14,
+                    system_prompt="You are an expert at extracting metadata from articles.",
+                    log_key="extract-article-metadata",
+                ),
+            )
             content = article_to_markdown(
                 llm_client=LLMClient(
-                    model=Models.GEMINI_2_5_PRO,
-                    system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_2,
+                    # model=Models.GEMINI_2_5_PRO,
+                    model=Models.GPT_4_1_NANO_2025_04_14,
+                    system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_3,
+                    log_key="article-to-markdown",
                 ),
                 url=url,
             )
 
-        summary = f"# {title}\n\n" + summarize_content(
+            # write the content to a file for debugging purposes
+            with open("debug_content.md", "w+") as f:
+                f.write(content)
+
+        summary = f"# {metadata.title}\n\n" + summarize_content(
             llm_client=LLMClient(
                 model=Models.GEMINI_2_5_FLASH_LITE_PREVIEW,
+                # model=Models.GPT_4_1_NANO_2025_04_14,
                 system_prompt=SUMMARIZE_PROMPT_1,
+                log_key="summarize-content",
             ),
             content=content,
         )
-        print(f"\nSummary:\n{summary}")
+        # print(f"\nSummary:\n{summary}")
         return JSONResponse(
             {
                 "metadata": metadata.model_dump(mode="json"),
