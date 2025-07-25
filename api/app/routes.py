@@ -59,7 +59,7 @@ def summarize(url: str):
             content = article_to_markdown(
                 llm_client=LLMClient(
                     # model=Models.GEMINI_2_5_PRO,
-                    model=Models.GPT_4_1_NANO_2025_04_14,
+                    model=Models.GPT_4_1_MINI_2025_04_14,
                     system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_3,
                     log_key="article-to-markdown",
                 ),
