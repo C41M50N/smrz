@@ -1,21 +1,24 @@
+import os
+from datetime import datetime
+
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
+from slugify import slugify
 
 from app import utils
+from app.lib.article_content import (
+    ARTICLE_TO_MARKDOWN_PROMPT_3,
+    article_to_markdown,
+    extract_article_metadata,
+)
 from app.lib.llm_client import LLMClient, Models
 from app.lib.summarization import SUMMARIZE_PROMPT_1, summarize_content
-from app.lib.article_content import (
-    ARTICLE_TO_MARKDOWN_PROMPT_2,
-    ARTICLE_TO_MARKDOWN_PROMPT_3,
-    extract_article_metadata,
-    article_to_markdown,
-)
-from app.lib.video_content import extract_video_metadata, get_video_transcript
 from app.lib.transcription import IMPROVE_TRANSCRIPT_PROMPT_1, VideoTranscriber
+from app.lib.video_content import extract_video_metadata, get_video_transcript
 from app.utils import (
-    is_youtube_url,
     is_direct_audio_url,
     is_direct_video_url,
+    is_youtube_url,
 )
 
 router = APIRouter()
@@ -79,7 +82,30 @@ def summarize(url: str):
             ),
             content=content,
         )
-        # print(f"\nSummary:\n{summary}")
+
+        #######################################################################
+
+        now_str = datetime.now().isoformat()
+        title_slug = slugify(metadata.title)
+
+        content_output_path = os.path.join(
+            "output", f"{now_str}_{title_slug}", f"{title_slug}.md"
+        )
+        summary_output_path = os.path.join(
+            "output", f"{now_str}_{title_slug}", f"{title_slug}_summary.md"
+        )
+
+        os.makedirs(os.path.dirname(content_output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(summary_output_path), exist_ok=True)
+
+        with open(content_output_path, "w+") as f:
+            f.write(content)
+
+        with open(summary_output_path, "w+") as f:
+            f.write(summary)
+
+        #######################################################################
+
         return JSONResponse(
             {
                 "metadata": metadata.model_dump(mode="json"),

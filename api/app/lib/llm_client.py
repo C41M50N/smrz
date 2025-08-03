@@ -18,6 +18,8 @@ class Models(StrEnum):
     GPT_4O_MINI = "gpt-4o-mini"
     GPT_4_1_NANO_2025_04_14 = "gpt-4.1-nano-2025-04-14"
     GPT_4_1_MINI_2025_04_14 = "gpt-4.1-mini-2025-04-14"
+    GPT_O3_MINI_2025_01_31 = "o3-mini-2025-01-31"
+    GPT_O4_MINI_2025_04_16 = "o4-mini-2025-04-16"
     # OpenRouter Models
     OR_LLAMA_4_MAVERICK = "meta-llama/llama-4-maverick"
     OR_LLAMA_3_3_70B_INSTRUCT = "meta-llama/llama-3.3-70b-instruct"
@@ -77,6 +79,18 @@ MODEL_REGISTRY: dict[Models, ModelInfo] = {
         "provider": "OpenAI",
         "cost_per_1M_input_tokens": 40,  # 0.40 USD
         "cost_per_1M_output_tokens": 160,  # 1.60 USD
+    },
+    Models.GPT_O3_MINI_2025_01_31: {
+        "name": "GPT-o3 Mini",
+        "provider": "OpenAI",
+        "cost_per_1M_input_tokens": 110,  # 1.10 USD
+        "cost_per_1M_output_tokens": 440,  # 4.40 USD
+    },
+    Models.GPT_O4_MINI_2025_04_16: {
+        "name": "GPT-o4 Mini",
+        "provider": "OpenAI",
+        "cost_per_1M_input_tokens": 110,  # 1.10 USD
+        "cost_per_1M_output_tokens": 440,  # 4.40 USD
     },
     # OpenRouter Models
     Models.OR_LLAMA_4_MAVERICK: {

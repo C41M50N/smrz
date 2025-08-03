@@ -13,7 +13,7 @@ def get_video_transcript(video_transcriber: VideoTranscriber, url: str) -> str:
 
 
 class VideoMetadata(BaseModel):
-    title: str | None = None
+    title: str
     channel: str | None = None
     published_date: datetime.date | None = None
     thumbnail_url: str | None = None
@@ -32,7 +32,7 @@ def extract_video_metadata(url: str) -> VideoMetadata:
         f"https://www.youtube.com/oembed?url={urllib.parse.quote(url)}&format=json"
     )
 
-    title = x.get("title", None)
+    title = x["title"]
     channel = x.get("author_name", None)
     thumbnail_url = x.get("thumbnail_url", None)
     published_date = None

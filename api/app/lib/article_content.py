@@ -23,7 +23,7 @@ def article_to_markdown(llm_client: LLMClient, url: str) -> str:
 
 
 class ArticleMetadata(BaseModel):
-    title: str | None = None
+    title: str
     author: str | None = None
     published_date: datetime.date | None = None
     favicon: str | None = None
