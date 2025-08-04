@@ -69,10 +69,6 @@ def summarize(url: str):
                 url=url,
             )
 
-            # write the content to a file for debugging purposes
-            with open("debug_content.md", "w+") as f:
-                f.write(content)
-
         summary = f"# {metadata.title}\n\n" + summarize_content(
             llm_client=LLMClient(
                 model=Models.GEMINI_2_5_FLASH_LITE_PREVIEW,
