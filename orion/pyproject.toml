@@ -1,0 +1,21 @@
+[project]
+name = "orion"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.116.1",
+    "lxml[html-clean]>=6.0.0",
+    "newspaper3k>=0.2.8",
+    "openai-whisper",
+    "requests>=2.32.4",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.7",
+]
+
+[tool.uv.sources]
+openai-whisper = { git = "https://github.com/openai/whisper.git" }
