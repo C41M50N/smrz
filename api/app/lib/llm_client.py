@@ -26,6 +26,7 @@ class Models(StrEnum):
     OR_GPT_4O_MINI = "openai/gpt-4o-mini"
     OR_GPT_4_1_MINI = "openai/gpt-4.1-mini"
     OR_KIMI_K2 = "moonshotai/kimi-k2"
+    OR_GPT_OSS_120B = "openai/gpt-oss-120b"
 
 
 class ModelInfo(TypedDict):
@@ -122,6 +123,12 @@ MODEL_REGISTRY: dict[Models, ModelInfo] = {
         "provider": "OpenRouter",
         "cost_per_1M_input_tokens": 14,  # 0.14 USD
         "cost_per_1M_output_tokens": 249,  # 2.49 USD
+    },
+    Models.OR_GPT_OSS_120B: {
+        "name": "GPT-OSS 120B",
+        "provider": "OpenRouter",
+        "cost_per_1M_input_tokens": 15,  # 0.15 USD
+        "cost_per_1M_output_tokens": 75,  # 0.75 USD
     },
 }
 
