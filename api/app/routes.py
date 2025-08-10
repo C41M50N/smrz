@@ -8,6 +8,7 @@ from slugify import slugify
 from app import utils
 from app.lib.article_content import (
     ARTICLE_TO_MARKDOWN_PROMPT_3,
+    ARTICLE_TO_MARKDOWN_PROMPT_4,
     article_to_markdown,
     extract_article_metadata,
 )
@@ -39,6 +40,7 @@ def summarize(url: str):
         return {"error": "Invalid URL. Please provide a valid URL."}
 
     try:
+        clean_html = None
         if is_youtube_url(url) or is_direct_video_url(url) or is_direct_audio_url(url):
             video_transcriber = VideoTranscriber(
                 transcript_readability_llm_client=LLMClient(
@@ -50,9 +52,10 @@ def summarize(url: str):
             metadata = extract_video_metadata(url)
             content = get_video_transcript(video_transcriber, url)
         else:
+            clean_html = utils.get_clean_html(url)
             metadata = extract_article_metadata(
                 url=url,
-                content=utils.get_clean_html(url),
+                content=clean_html,
                 fallback_llm_client=LLMClient(
                     model=Models.GPT_4_1_NANO_2025_04_14,
                     system_prompt="You are an expert at extracting metadata from articles.",
@@ -61,9 +64,10 @@ def summarize(url: str):
             )
             content = article_to_markdown(
                 llm_client=LLMClient(
-                    # model=Models.GEMINI_2_5_PRO,
                     model=Models.GPT_4_1_MINI_2025_04_14,
-                    system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_3,
+                    # model=Models.GPT_5_MINI,
+                    # model=Models.GPT_5,
+                    system_prompt=ARTICLE_TO_MARKDOWN_PROMPT_4,
                     log_key="article-to-markdown",
                 ),
                 url=url,
@@ -84,6 +88,9 @@ def summarize(url: str):
         now_str = datetime.now().isoformat()
         title_slug = slugify(metadata.title)
 
+        clean_html_path = os.path.join(
+            "output", f"{now_str}_{title_slug}", f"{title_slug}_clean.html"
+        )
         content_output_path = os.path.join(
             "output", f"{now_str}_{title_slug}", f"{title_slug}.md"
         )
@@ -91,8 +98,13 @@ def summarize(url: str):
             "output", f"{now_str}_{title_slug}", f"{title_slug}_summary.md"
         )
 
+        os.makedirs(os.path.dirname(clean_html_path), exist_ok=True)
         os.makedirs(os.path.dirname(content_output_path), exist_ok=True)
         os.makedirs(os.path.dirname(summary_output_path), exist_ok=True)
+
+        if clean_html:
+            with open(clean_html_path, "w+") as f:
+                f.write(clean_html)
 
         with open(content_output_path, "w+") as f:
             f.write(content)

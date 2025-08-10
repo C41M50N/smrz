@@ -8,5 +8,5 @@ load_dotenv()  # Load environment variables from .env file
 
 from app.routes import router  # noqa: E402
 
-app = FastAPI(title="readr API", version="0.1.0")
+app = FastAPI(title="orion", version="0.1.0")
 app.include_router(router)

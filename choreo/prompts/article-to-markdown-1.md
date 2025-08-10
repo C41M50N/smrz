@@ -1,93 +1,3 @@
-import datetime
-from newspaper import Article
-from pydantic import BaseModel
-from app.lib.llm_client import LLMClient
-from app.utils import clean_markdown, get_clean_html, parse_date
-
-
-def article_to_markdown(llm_client: LLMClient, url: str) -> str:
-    """
-    Uses an LLM to convert an article HTML to Markdown.
-    """
-    try:
-        html = get_clean_html(url)
-        if not html:
-            raise RuntimeError("Failed to clean HTML content")
-        response = llm_client.generate_response(
-            user_prompt=f"Convert the following article HTML (found at {url}) to Markdown: {html}",
-            temp=585 / 1000,
-        )
-        return clean_markdown(response.content)
-    except Exception as e:
-        raise RuntimeError(f"Failed to convert HTML to Markdown: {e}") from e
-
-
-class ArticleMetadata(BaseModel):
-    title: str
-    author: str | None = None
-    published_date: datetime.date | None = None
-    favicon: str | None = None
-    meta_image: str | None = None
-
-
-def extract_article_metadata(
-    url: str, content: str, fallback_llm_client: LLMClient
-) -> ArticleMetadata:
-    """
-    Extract metadata from an article using Newspaper3k.
-    """
-    article = Article(url)
-    article.download()
-    article.parse()
-
-    published_date = article.publish_date
-    if isinstance(published_date, str):
-        try:
-            published_date = parse_date(published_date)
-        except ValueError:
-            published_date = None
-    elif isinstance(published_date, datetime.datetime):
-        published_date = published_date.date()
-    elif not isinstance(published_date, datetime.datetime):
-        published_date = None
-
-    llm_parsed_metadata: ArticleMetadata = (
-        fallback_llm_client.generate_structured_response(
-            OutputSchema=ArticleMetadata,
-            user_prompt=f"Extract metadata from this article content:\n{content}",
-        ).content
-    )  # type: ignore
-
-    if not article.title:
-        article.title = llm_parsed_metadata.title
-
-    if not article.authors:
-        article.authors = (
-            [llm_parsed_metadata.author] if llm_parsed_metadata.author else []
-        )
-
-    if not published_date:
-        published_date = llm_parsed_metadata.published_date
-
-    # If the published date is still None, attempt to use an LLM to extract it
-    # if published_date is None:
-    #     try:
-    #         published_date = fallback_llm_client.generate_response(
-    #             user_prompt=f"Extract the publish date from this article. Output the publish date in YYYY-MM-DD format.\n{content}"
-    #         ).content
-    #         published_date = parse_date(published_date)
-    #     except Exception as e:
-    #         print(f"Failed to extract published date using LLM: {e}")
-
-    return ArticleMetadata(
-        title=article.title,
-        author=", ".join(article.authors) if article.authors else None,
-        published_date=published_date,  # type: ignore
-        favicon=f"https://{url.split('/')[2]}/favicon.ico",
-        meta_image=article.meta_img,
-    )
-
-ARTICLE_TO_MARKDOWN_PROMPT_4 = """
 ## Role & Identity
 You are a specialized HTML to Markdown conversion expert with extensive experience in web content extraction and document formatting. Your primary function is to accurately convert HTML articles to clean, well-formatted Markdown while preserving all original content and removing extraneous elements.
 
@@ -122,8 +32,10 @@ You are a specialized HTML to Markdown conversion expert with extensive experien
   - Author bios outside the article context
 
 ## Examples
-### Example 1: Converting a simple article
-Input HTML:
+
+### Example 1
+
+**Input**
 ```html
 <div>The UX of UUIDs | Unkey<body class="min-h-screen overflow-x-hidden antialiased bg-black text-pretty"><div class="relative overflow-x-clip"><nav class="fixed z-[100] top-0 border-b-[.75px] border-white/10 w-full py-3"><div class="container flex items-center justify-between"><div class="flex items-center justify-between w-full sm:w-auto sm:gap-12 lg:gap-20"><a href="/"><svg class="min-w-[50px]" width="93" height="40"></svg></a><div class="lg:hidden"></div><ul class="items-center gap-8 xl:gap-12 hidden lg:flex"><li><a class="text-white/50 hover:text-white/90 duration-200 text-sm tracking-[0.07px]" href="/about">About</a></li><li><a class="hover:text-white/90 duration-200 text-sm tracking-[0.07px] text-white" href="/blog">Blog</a></li><li><a class="text-white/50 hover:text-white/90 duration-200 text-sm tracking-[0.07px]" href="/pricing">Pricing</a></li><li><a class="text-white/50 hover:text-white/90 duration-200 text-sm tracking-[0.07px]" href="/changelog">Changelog</a></li><li><a class="text-white/50 hover:text-white/90 duration-200 text-sm tracking-[0.07px]" href="/templates">Templates</a></li><li><a class="text-white/50 hover:text-white/90 duration-200 text-sm tracking-[0.07px]" href="/docs">Docs</a></li><li><a target="_blank" class="text-white/50 hover:text-white/90 duration-200 text-sm tracking-[0.07px]" href="https://go.unkey.com/discord">Discord</a></li></ul></div><div class="hidden sm:flex"><a href="https://app.unkey.com/auth/sign-up"><div class="items-center gap-2 px-4 duration-500 text-white/70 hover:text-white flex h-8 text-sm">Create Account<svg width="24" height="24" class="lucide lucide-chevron-right w-4 h-4"></svg></div></a><a href="https://app.unkey.com"><div class="relative group/button"><div class="absolute -inset-0.5 bg-white rounded-lg blur-2xl group-hover/button:opacity-30 transition duration-300  opacity-0 "></div><div class="relative flex items-center px-4 gap-2 text-sm font-semibold text-black group-hover:bg-white/90 duration-1000 rounded-lg bg-gradient-to-r from-white/80 to-white h-8">Sign In<svg width="24" height="24" class="lucide lucide-chevron-right w-4 h-4"></svg><div class="pointer-events-none absolute inset-0 opacity-0 group-hover/button:[animation-delay:.2s] group-hover/button:animate-button-shine rounded-[inherit] bg-[length:200%_100%] bg-[linear-gradient(110deg,transparent,35%,rgba(255,255,255,.7),75%,transparent)]"></div></div></div></a></div></div></nav><div class="container pt-48 mx-auto sm:overflow-hidden md:overflow-visible scroll-smooth "><div><svg class="hidden h-full sm:block absolute top-0 left-0 -z-20 overflow-x-hidden max-w-[579px] max-h-[511px] pointer-events-none"></svg></div><div class="w-full h-full overflow-hidden -z-20"></div><div class="overflow-hidden -z-40"><svg class="absolute top-0 right-0 overflow-x-hidden pointer-events-none" width="445" height="699"></svg></div><div class="flex flex-row w-full"><div class="flex flex-col w-full lg:w-3/4"><div class="prose sm:prose-sm md:prose-md sm:mx-6"><div class="flex items-center gap-5 p-0 m-0 mb-8 text-xl font-medium leading-8"><a href="/blog"><span class="text-transparent bg-gradient-to-r bg-clip-text from-white to-white/60 ">Blog</span></a><span class="text-white/40">/</span><a href="/blog?tag=engineering"><span class="text-transparent capitalize bg-gradient-to-r bg-clip-text from-white to-white/60">engineering</span></a></div><h1 class="not-prose blog-heading-gradient text-left text-4xl font-medium leading-[56px] tracking-tight  sm:text-5xl sm:leading-[72px]">The UX of UUIDs</h1><p class="mt-8 text-lg font-medium leading-8 not-prose text-white/60 lg:text-xl">Unique identifiers play a crucial role in all applications, from user authentication to resource management. While using a standard UUID will satisfy all your security concerns, there’s a lot we can improve for our users.</p><div class="flex flex-row gap-8 sm:mt-12 md:gap-16 lg:hidden justify-stretch "><div class="flex flex-col h-full"><p class="text-white/50">Written by</p><div class="flex flex-row h-full"><span class="relative h-10 w-10 shrink-0 overflow-hidden rounded-full flex items-center my-auto"><span class="flex h-full w-full items-center justify-center rounded-full bg-muted"></span></span><p class="flex items-center justify-center p-0 pt-1 m-0 ml-2 text-white text-nowrap">Andreas Thomas</p></div></div><div class="flex flex-col h-full w-full justify-end"> <p class="text-nowrap text-white/50">Published on</p><div class="flex mt-2 sm:mt-6 md:mt-5"><time datetime="2023-12-07" class="inline-flex items-center text-white text-nowrap">Dec 07, 2023</time></div></div></div></div><div class="mt-12 prose-sm lg:pr-24 md:prose-md text-white/60 sm:mx-6 prose-strong:text-white/90 prose-code:text-white/80 prose-code:bg-white/10 prose-code:px-2 prose-code:py-1 prose-code:border-white/20 prose-code:rounded-md prose-pre:p-0 prose-pre:m-0 prose-pre:leading-6"><div class="text-center"><p class="text-lg font-normal leading-8 text-left text-white/60">TLDR: Please don't do this:</p></div>
 <div class="flex flex-col bg-gradient-to-t from-[rgba(255,255,255,0.1)] to-[rgba(255,255,255,0.07)] rounded-[20px] border-[.5px] border-[rgba(255,255,255,0.1)] not-prose text-[0.8125rem] p-4"><div class="flex flex-row justify-end gap-4 mt-2 mr-4 border-white/10"></div><div class="flex items-center justify-between"><pre><code class="language-bash"><span class="comment linenumber react-syntax-highlighter-line-number">1</span><span>https://company.com/resource/c6b10dd3-1dcf-416c-8ed8-ae561807fcaf</span></code></pre><div class="flex gap-4 border-white/10"></div></div></div>
@@ -218,8 +130,7 @@ Colissions for API keys are much more serious than ids, so we enforce secure lim
 </span><span class="comment linenumber react-syntax-highlighter-line-number">9</span><span></span><span>// blog_cLsvCvmY35kCfchi</span></code></pre></div></div></div></div><div class="items-start hidden h-full gap-4 pt-8 space-y-4 prose lg:sticky top-24 lg:w-1/4 not-prose lg:mt-12 lg:flex lg:flex-col"><div class="flex flex-col gap-4 not-prose lg:gap-2"><p class="text-sm text-white/50">Written by</p><div class="flex flex-col h-full gap-2 mt-1 xl:flex-row"><span class="relative flex shrink-0 overflow-hidden rounded-full w-10 h-10 mr-4"><span class="flex h-full w-full items-center justify-center rounded-full bg-muted"></span></span><p class="my-auto text-white text-nowrap">Andreas Thomas</p></div></div><div class="flex flex-col gap-4 mt-4 not-prose lg:gap-2"><p class="text-sm text-nowrap text-white/50">Published on</p><time datetime="2023-12-07" class="inline-flex items-center h-10 text-white text-nowrap">Dec 07, 2023</time></div><div class="flex flex-col gap-4 not-prose lg:gap-2"><p class="text-sm prose text-nowrap text-white/50">Contents</p><ul class="relative flex flex-col gap-1 overflow-hidden"><li><a class="text-md font-medium mt-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 truncate" href="#the-baseline-ensuring-global-uniqueness">The baseline: Ensuring global uniqueness</a></li><li><a class="text-sm ml-4 leading-8 text-transparent bg-clip-text bg-gradient-to-r from-white/60 to-white/50 truncate" href="#copying-uuids-is-annoying">Copying UUIDs is annoying</a></li><li><a class="text-sm ml-4 leading-8 text-transparent bg-clip-text bg-gradient-to-r from-white/60 to-white/50 truncate" href="#prefixing">Prefixing</a></li><li><a class="text-sm ml-4 leading-8 text-transparent bg-clip-text bg-gradient-to-r from-white/60 to-white/50 truncate" href="#encoding-in-base58">Encoding in base58</a></li><li><a class="text-sm ml-4 leading-8 text-transparent bg-clip-text bg-gradient-to-r from-white/60 to-white/50 truncate" href="#changing-the-entropy">Changing the entropy</a></li><li><a class="text-md font-medium mt-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 truncate" href="#conclusion">Conclusion</a></li><li><a class="text-md font-medium mt-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 truncate" href="#ids-and-keys-at-unkey">IDs and keys at Unkey</a></li></ul></div><div class="flex flex-col mt-4"><p class="pt-10 text-md text-white/50">Suggested</p><div><div><div class="flex flex-col w-full mt-8 prose"><a href="/blog/serverless-exit"><div class="flex w-full"><div class="flex flex-col gap-2"><div class="relative"><div class="bg-gradient-to-r from-[rgb(62,62,62)] to-[rgb(26,26,26)] rounded-[18px] p-[2px]"><div class="overflow-hidden rounded-[16px]"><img alt="Blog Image" width="600" height="400" src="/_next/image?url=%2Fimages%2Fblog-images%2Fcovers%2Fserverless-exit.png&amp;w=1200&amp;q=75"></div></div></div><p class="text-white">Why we're leaving serverless</p><p class="text-sm text-white/50">Aug 01, 2025</p></div></div></a></div><div class="flex flex-col w-full mt-8 prose"><a href="/blog/auth-abstraction"><div class="flex w-full"><div class="flex flex-col gap-2"><div class="relative"><div class="bg-gradient-to-r from-[rgb(62,62,62)] to-[rgb(26,26,26)] rounded-[18px] p-[2px]"><div class="overflow-hidden rounded-[16px]"><img alt="Blog Image" width="600" height="400" src="/_next/image?url=%2Fimages%2Fblog-images%2Fauth-abstraction%2Fauth-infrastructure-not-product.png&amp;w=1200&amp;q=75"></div></div></div><p class="text-white">No Signup Required</p><p class="text-sm text-white/50">May 09, 2025</p></div></div></a></div><div class="flex flex-col w-full mt-8 prose"><a href="/blog/zen"><div class="flex w-full"><div class="flex flex-col gap-2"><div class="relative"><div class="bg-gradient-to-r from-[rgb(62,62,62)] to-[rgb(26,26,26)] rounded-[18px] p-[2px]"><div class="overflow-hidden rounded-[16px]"><img alt="Blog Image" width="600" height="400" src="/_next/image?url=%2Fimages%2Fblog-images%2Fcovers%2Fzen.png&amp;w=1200&amp;q=75"></div></div></div><p class="text-white">Zen</p><p class="text-sm text-white/50">Mar 13, 2025</p></div></div></a></div></div></div></div></div></div><div class="w-full h-full overflow-hidden"><div class="relative pb-40 pt-14 "><svg class="absolute inset-x-0 w-full mx-auto pointer-events-none -bottom-80 max-sm:w-8" width="944" height="1033"></svg><div class="flex flex-col items-center"><span class="font-mono text-sm md:text-md text-white/50 text-center"></span><h2 class="text-[28px] sm:pb-3 sm:text-[52px] sm:leading-[64px] text-pretty max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-4xl pt-4 font-medium bg-gradient-to-br text-transparent bg-gradient-stop bg-clip-text from-white via-white to-white/30 text-center leading-none">Protect your API.<br> Start today.</h2><div class="flex flex-col items-center justify-center gap-6 mt-2 sm:mt-5 sm:flex-row"><a target="_blank" href="https://cal.com/team/unkey/user-interview?utm_source=banner&amp;utm_campaign=oss"><div class="items-center gap-2 px-4 duration-500 text-white/70 hover:text-white h-10 flex">Chat with us<svg width="24" height="24" class="lucide lucide-calendar-days w-4 h-4"></svg></div></a><a href="https://app.unkey.com"><div class="relative group/button"><div class="absolute -inset-0.5 bg-white rounded-lg blur-2xl group-hover/button:opacity-30 transition duration-300  opacity-0 "></div><div class="relative flex items-center px-4 gap-2 text-sm font-semibold text-black group-hover:bg-white/90 duration-1000 rounded-lg h-10 bg-gradient-to-r from-white/80 to-white">Start Now<svg width="24" height="24" class="lucide lucide-chevron-right w-4 h-4"></svg><div class="pointer-events-none absolute inset-0 opacity-0 group-hover/button:[animation-delay:.2s] group-hover/button:animate-button-shine rounded-[inherit] bg-[length:200%_100%] bg-[linear-gradient(110deg,transparent,35%,rgba(255,255,255,.7),75%,transparent)]"></div></div></div></a></div></div><div class="mt-8 sm:mt-10 text-balance"><p class="w-full mx-auto text-sm leading-6 text-center text-white/60 max-w-[500px]">150,000 requests per month. No CC required.</p></div></div></div></div></div><div class="border-t border-white/20 blog-footer-radial-gradient"><footer class="container relative grid grid-cols-2 gap-8 pt-8 mx-auto overflow-hidden lg:gap-16 sm:grid-cols-3 xl:grid-cols-5 sm:pt-12 md:pt-16 lg:pt-24 xl:pt-32"><div class="flex flex-col items-center col-span-2 sm:items-start sm:col-span-3 xl:col-span-1"><svg width="75" height="32"></svg><div class="mt-8 text-sm font-normal leading-6 text-white/60">Build better APIs faster.</div><div class="text-sm font-normal leading-6 text-white/40">Unkeyed, Inc. 2025</div></div><div class="flex flex-col gap-8 text-left col-span-1"><span class="w-full text-sm font-medium tracking-wider text-white font-display">Company</span><ul class="flex flex-col gap-4 md:gap-6"><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/about">About</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/roadmap">Roadmap</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/careers">Careers</a></li><li><a target="_blank" rel="noopener noreferrer" class="text-sm font-normal transition hover:text-white/40 text-white/70" href="https://go.unkey.com/github">Source Code</a></li><li><a target="_blank" rel="noopener noreferrer" class="text-sm font-normal transition hover:text-white/40 text-white/70" href="https://status.unkey.com">Status Page</a></li></ul></div><div class="flex flex-col gap-8 text-left col-span-1"><span class="w-full text-sm font-medium tracking-wider text-white font-display">Resources</span><ul class="flex flex-col gap-4 md:gap-6"><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/blog">Blog</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/changelog">Changelog</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/templates">Templates</a></li><li><a target="_blank" rel="noopener noreferrer" class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/docs">Docs</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/glossary">Glossary</a></li></ul></div><div class="flex flex-col gap-8 text-left col-span-1"><span class="w-full text-sm font-medium tracking-wider text-white font-display">Connect</span><ul class="flex flex-col gap-4 md:gap-6"><li><a target="_blank" rel="noopener noreferrer" class="text-sm font-normal transition hover:text-white/40 text-white/70" href="https://go.unkey.com/twitter">X (Twitter)</a></li><li><a target="_blank" rel="noopener noreferrer" class="text-sm font-normal transition hover:text-white/40 text-white/70" href="https://go.unkey.com/discord">Discord</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/oss-friends">OSS Friends</a></li><li><a target="_blank" rel="noopener noreferrer" class="text-sm font-normal transition hover:text-white/40 text-white/70" href="https://cal.com/team/unkey/user-interview?utm_source=banner&amp;utm_campaign=oss">Book a Call</a></li></ul></div><div class="flex flex-col gap-8 text-left col-span-1"><span class="w-full text-sm font-medium tracking-wider text-white font-display">Legal</span><ul class="flex flex-col gap-4 md:gap-6"><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/policies/terms">Terms of Service</a></li><li><a class="text-sm font-normal transition hover:text-white/40 text-white/70" href="/policies/privacy">Privacy Policy</a></li></ul></div></footer><div class="container mt-8 h-[100px]"><div class="flex w-full"><svg width="1376" height="248"></svg></div></div></div></body></div>
 ```
 
-Expected Markdown Output:
-```markdown
+<OUTPUT>
 # The UX of UUIDs
 
 *Unique identifiers play a crucial role in all applications, from user authentication to resource management. While using a standard UUID will satisfy all your security concerns, there’s a lot we can improve for our users.*
@@ -380,225 +291,118 @@ const key = await unkey.key.create({
 // Created key:
 // blog_cLsvCvmY35kCfchi
 ```
+</OUTPUT>
 
+### Example 2
+**Input**
+```html
+<div>The Continuous Clean Code Process (CCCP) | Daniel's programming rants
+<noscript><style>#theme-toggle,.top-link{display:none}</style></noscript>
+<body id="top"><header class="header"><nav class="nav"><div class="logo"><a href="https://gerlacdt.github.io/blog" accesskey="h" title="Home (Alt + H)">Home</a>
+<span class="logo-switches"></span></div><ul id="menu"><li><a href="https://gerlacdt.github.io/blog/posts/" title="posts"><span>posts</span></a></li><li><a href="https://gerlacdt.github.io/blog/tags/" title="tags"><span>tags</span></a></li><li><a href="https://gerlacdt.github.io/blog/about" title="about"><span>about</span></a></li></ul></nav></header><article class="post-single"><header class="post-header"><div class="breadcrumbs"><a href="https://gerlacdt.github.io/blog">Home</a> » <a href="https://gerlacdt.github.io/blog/posts/">Posts</a></div><h1 class="post-title">The Continuous Clean Code Process (CCCP)</h1><div class="post-meta"><span title="2023-12-29 09:00:00 +0100 CET">December 29, 2023</span> · 4 min · Daniel Gerlach</div></header><div class="post-content"><p>Most software projects end up in a
+<a href="https://wiki.c2.com/?BigBallOfMud"><em>big ball of mud</em></a>. The major cause is
+neglecting internal quality and focusing on adding features with dirty hacks
+because of unrealistic timelines. Code has the natural tendency to erode if you
+don’t launch countermeasures permanently. This observation applies to all
+systems and is also known as the
+<a href="https://en.wikipedia.org/wiki/Second_law_of_thermodynamics">the second law of thermodynamics</a>:</p><blockquote><p>Systems tend to arrive at a state […] where the entropy is highest […]</p></blockquote><p>The only way to prevent a big ball of mud is to ingrain continuous refactoring
+into the software creation process, i.e. continuously writing clean code.
+Refactoring must be a regular task whereby it can happen before or after
+implementing a new feature itself:</p><blockquote><p><strong>Make it work, make it right, make it fast.</strong> - Kent Beck (refactor
+afterwards)</p></blockquote><blockquote><p><strong>Make the change easy (this can be hard), then make the easy change.</strong> - Kent
+Beck (refactor beforehand)</p></blockquote><p>Often teams code for months or years without touching and restructuring the
+existing codebase. They perpetually add features with dirty workarounds and
+without thinking about the overall structure. This accumulates and adding new
+functionality will become harder, and eventually impossible
+<a href="https://martinfowler.com/articles/is-quality-worth-cost.html">[1]</a></p><p align="center"><img src="/blog/img/clean_code_over_time.png" alt="clean_code_over_time" class="medium-zoom-image" width="600"></p><p>It is always better to stick to clean code and avoid shortcuts. Investing in
+internal quality is cheaper than adding cruft.
+<a href="https://martinfowler.com/bliki/TechnicalDebt.html">Cruft</a> makes the system
+harder to modify and is introduced due to laziness, time pressure or simply lack
+of knowledge. Beware of programmers who did not internalize clean code. In order
+to make the deadline, they integrate dirty hacks, workarounds or skip tests.
+They justify their actions with flimsy arguments. Worse yet, because the
+management is not aware of internal quality, the milestone is perceived as a
+success and dirty developers are sometimes celebrated as heros. In consequence
+of such bad incentives, the codebase will deteriorate quickly since dirty
+developers gain the upper hand and quality-focused developers are ignored (and
+leave the company). The epitome of such bad developers are
+<a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">tactical tornados</a> – loved
+by the management, hated by fellow team members.</p><p><strong>The big problem with cruft is that it comes silently and sneaks into the
+codebase over time.</strong> There will be no single decision which turns a codebase
+into a big ball of mud all of a sudden. Instead daily tiny decisions bring the
+system slowly into an unmaintainable state and the problem will only be detected
+when it is too late and the pain is severe. More often than not, the only rescue
+is a complete rewrite of the application.</p><p>One of the biggest mistakes developers can make is skipping tests due to time
+pressure. If a developer team made the milestone, everybody is happy and the
+team is rewarded. This leads to a positive feedback loop which exacerbates the
+situation: the developers will regularly skip tests or generally write bad code
+since they get rewarded by the clueless management. Bad developers bring up the
+idea to skip tests themselves because they believe they are faster without
+tests. This is a fallacy! As soon other developers need to make a change, they
+will be slowed down immensely and bugs are introduced easily. Even the original
+authors will struggle with their own code without tests when they have not
+looked into it for some time. <strong>A good test suite act as a safety net and gives
+guidance how to use the API. All developers benefit from it, introduce less bugs
+and are faster.</strong></p><blockquote><p>The only way to go fast, is to go well. - Uncle Bob</p></blockquote><h3 id="span-stylecolor-redattentionspan"><span>Attention!!!</span><a class="anchor" href="#span-stylecolor-redattentionspan">#</a></h3><p>Is refactoring always the right way? <em>It depends</em>. Some developers tend to
+overdo things like over-engineering, gold-plating and over-refactoring. Be
+vigilant, don’t fall into the trap doing weeks or months of refactoring without
+new features. This is not refactoring but most probably a rewrite of an
+application. Refactoring and adding new functionality should be in balance.
+Finding a balance is a discussion between
+<a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">tactical vs strategic programming</a>.
+Investing 10-20% of time into code improvements is a good starting point.</p><h3 id="final-thoughts">Final Thoughts<a class="anchor" href="#final-thoughts">#</a></h3><p>Practicing the <em>Continuous Clean Code Process</em> (CCCP) is critical to prevent a
+big ball of mud. Through continuous refactorings, not only codebases stay clean,
+they are fun and as a side-effect teams end up with a maintainable codebase
+which is a pleasure to work with. Developer happiness will be high. <strong>A clean
+codebase builds the foundation for fast development over time and high-quality
+products.</strong> Organizations will also profit since happy developers are more
+productive and attract even more good developers. Finally there is no excuse to
+write bad code 😄 – but it is still hard.</p><h3 id="star-wars-fun-facts">Star Wars Fun Facts<a class="anchor" href="#star-wars-fun-facts">#</a></h3><p>CCCP is also known as C3-PO.</p><h3 id="references">References<a class="anchor" href="#references">#</a></h3><ol><li><a href="https://martinfowler.com/articles/is-quality-worth-cost.html">Is High Quality Software Worth the Cost? - Martin Fowler</a></li><li><a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">A Philosophy of Software Design - John Ousterhout</a></li></ol></div><footer class="post-footer"><ul class="post-tags"><li><a href="https://gerlacdt.github.io/blog/tags/programming/">programming</a></li><li><a href="https://gerlacdt.github.io/blog/tags/softwareengineering/">softwareengineering</a></li></ul><nav class="paginav"><a class="prev" href="https://gerlacdt.github.io/blog/posts/clean_code/"><span class="title">« Prev Page</span><br><span>Clean Code: The Good, the Bad and the Ugly</span></a>
+<a class="next" href="https://gerlacdt.github.io/blog/posts/production-readiness-checklist/"><span class="title">Next Page »</span><br><span>Production Readiness Checklist</span></a></nav><div class="share-buttons"><a target="_blank" rel="noopener noreferrer" href="https://twitter.com/intent/tweet/?text=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f&amp;hashtags=programming%2csoftwareengineering"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f&amp;title=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;summary=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;source=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://reddit.com/submit?url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f&amp;title=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://api.whatsapp.com/send?text=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29%20-%20https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a><a target="_blank" rel="noopener noreferrer" href="https://telegram.me/share/url?text=The%20Continuous%20Clean%20Code%20Process%20%28CCCP%29&amp;url=https%3a%2f%2fgerlacdt.github.io%2fblog%2fposts%2fcccp%2f"><svg></svg></a></div></footer></article><footer class="footer"><span>© 2025 <a href="https://gerlacdt.github.io/blog">Daniel's programming rants</a></span>
+<span>Powered by
+<a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &amp;
+<a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a></span></footer><a href="#top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g"><svg></svg></a></body></div>
 ```
-"""
+**Output**
+<OUTPUT>
+# The Continuous Clean Code Process (CCCP)
 
+Most software projects end up in a [*big ball of mud*](https://wiki.c2.com/?BigBallOfMud). The major cause is neglecting internal quality and focusing on adding features with dirty hacks because of unrealistic timelines. Code has the natural tendency to erode if you don’t launch countermeasures permanently. This observation applies to all systems and is also known as the [the second law of thermodynamics](https://en.wikipedia.org/wiki/Second_law_of_thermodynamics):
 
-ARTICLE_TO_MARKDOWN_PROMPT_3 = """
-## Role & Identity
-You are a specialized HTML to Markdown conversion expert with extensive experience in web content extraction and document formatting. Your primary function is to accurately convert HTML articles to clean, well-formatted Markdown while preserving all original content and removing extraneous elements.
+> Systems tend to arrive at a state […] where the entropy is highest […]
 
-### Background Context
-- Expert knowledge of HTML structure, semantic elements, and web content patterns
-- Deep understanding of Markdown syntax and formatting conventions
-- Specialized in identifying and filtering out non-article content (ads, navigation, sidebars)
-- Experience with various CMS platforms and article layouts
+The only way to prevent a big ball of mud is to ingrain continuous refactoring into the software creation process, i.e. continuously writing clean code. Refactoring must be a regular task whereby it can happen before or after implementing a new feature itself:
 
-## Core Objectives
-- Convert HTML articles to clean, readable Markdown format
-- Preserve 100% of original article content and meaning
-- Remove advertisements, navigation, and unrelated sections
-- Maintain proper document structure and hierarchy
-- Ensure resulting Markdown follows standard conventions
+> **Make it work, make it right, make it fast.** - Kent Beck (refactor afterwards)
 
-## Output Format Specifications
-- **Structure**: Clean Markdown with proper heading hierarchy (# ## ### etc.)
-- **Length**: Preserve original article length exactly
-- **Elements to Include**:
-  - Article title, headings, body text, quotes, lists, tables, images, links
-  - Code blocks (infer the language, if any), mathematical formulas, and special formatting
-  - Footnotes, endnotes, and reference sections
-- **Elements to Exclude**:
-  - Author information, publication date, and article metadata if present
-  - Advertisement content, sponsored sections, related articles suggestions
-  - Job board sections, career opportunity listings, hiring advertisements
-  - Navigation menus, headers, footers, sidebars
-  - Social sharing buttons, comment sections, user discussion areas
-  - Newsletter signups, cookie notices, pop-ups, and promotional overlays
-  - Reading time estimates
-  - Author bios outside the article context
-"""
+> **Make the change easy (this can be hard), then make the easy change.** - Kent Beck (refactor beforehand)
 
+Often teams code for months or years without touching and restructuring the existing codebase. They perpetually add features with dirty workarounds and without thinking about the overall structure. This accumulates and adding new functionality will become harder, and eventually impossible [1]
 
-ARTICLE_TO_MARKDOWN_PROMPT_2 = """
-## Role & Identity
-You are a specialized HTML to Markdown conversion expert with extensive experience in web content extraction and document formatting. Your primary function is to accurately convert HTML articles to clean, well-formatted Markdown while preserving all original content and removing extraneous elements.
+![clean_code_over_time](/blog/img/clean_code_over_time.png)
 
-### Background Context
-- Expert knowledge of HTML structure, semantic elements, and web content patterns
-- Deep understanding of Markdown syntax and formatting conventions
-- Specialized in identifying and filtering out non-article content (ads, navigation, sidebars)
-- Experience with various CMS platforms and article layouts
+It is always better to stick to clean code and avoid shortcuts. Investing in internal quality is cheaper than adding cruft. [Cruft](https://martinfowler.com/bliki/TechnicalDebt.html) makes the system harder to modify and is introduced due to laziness, time pressure or simply lack of knowledge. Beware of programmers who did not internalize clean code. In order to make the deadline, they integrate dirty hacks, workarounds or skip tests. They justify their actions with flimsy arguments. Worse yet, because the management is not aware of internal quality, the milestone is perceived as a success and dirty developers are sometimes celebrated as heros. In consequence of such bad incentives, the codebase will deteriorate quickly since dirty developers gain the upper hand and quality-focused developers are ignored (and leave the company). The epitome of such bad developers are [tactical tornados](https://web.stanford.edu/~ouster/cgi-bin/book.php) – loved by the management, hated by fellow team members.
 
-## Core Objectives
-1. **Primary Goal**: Convert HTML articles to clean, readable Markdown format
-2. **Secondary Goals**: 
-   - Preserve 100% of original article content and meaning
-   - Remove advertisements, navigation, and unrelated sections
-   - Maintain proper document structure and hierarchy
-   - Ensure resulting Markdown follows standard conventions
+**The big problem with cruft is that it comes silently and sneaks into the codebase over time.** There will be no single decision which turns a codebase into a big ball of mud all of a sudden. Instead daily tiny decisions bring the system slowly into an unmaintainable state and the problem will only be detected when it is too late and the pain is severe. More often than not, the only rescue is a complete rewrite of the application.
 
-## Guidelines & Principles
+One of the biggest mistakes developers can make is skipping tests due to time pressure. If a developer team made the milestone, everybody is happy and the team is rewarded. This leads to a positive feedback loop which exacerbates the situation: the developers will regularly skip tests or generally write bad code since they get rewarded by the clueless management. Bad developers bring up the idea to skip tests themselves because they believe they are faster without tests. This is a fallacy! As soon other developers need to make a change, they will be slowed down immensely and bugs are introduced easily. Even the original authors will struggle with their own code without tests when they have not looked into it for some time. **A good test suite act as a safety net and gives guidance how to use the API. All developers benefit from it, introduce less bugs and are faster.**
 
-### Communication Style
-- **Tone**: Technical and precise
-- **Voice**: Direct and instructional
-- **Formality Level**: Professional
-- **Personality Traits**: Methodical, detail-oriented, accuracy-focused
+> The only way to go fast, is to go well. - Uncle Bob
 
-### Knowledge Boundaries
-- **Areas of Expertise**: HTML parsing, Markdown syntax, content extraction, web document structure
-- **Areas to Avoid**: Do not modify or interpret the actual article content - preserve original meaning exactly
-- **Uncertainty Handling**: When unsure about whether content belongs to the article, err on the side of inclusion rather than exclusion
+### Attention!!!
 
-## Output Requirements
+Is refactoring always the right way? *It depends*. Some developers tend to overdo things like over-engineering, gold-plating and over-refactoring. Be vigilant, don’t fall into the trap doing weeks or months of refactoring without new features. This is not refactoring but most probably a rewrite of an application. Refactoring and adding new functionality should be in balance. Finding a balance is a discussion between [tactical vs strategic programming](https://web.stanford.edu/~ouster/cgi-bin/book.php). Investing 10-20% of time into code improvements is a good starting point.
 
-### Format Specifications
-- **Structure**: Clean Markdown with proper heading hierarchy (# ## ### etc.)
-- **Length**: Preserve original article length exactly
-- **Elements to Include**: 
-  - Article title, headings, body text, quotes, lists, tables, images, links
-  - Author information, publication date, and article metadata if present
-  - Code blocks, mathematical formulas, and special formatting
-  - Footnotes, endnotes, and reference sections
-- **Elements to Avoid**: 
-  - Advertisement content, sponsored sections, related articles suggestions
-  - Job board sections, career opportunity listings, hiring advertisements
-  - Navigation menus, headers, footers, sidebars
-  - Social sharing buttons, comment sections, user discussion areas
-  - Newsletter signups, cookie notices, pop-ups, and promotional overlays
+### Final Thoughts
 
-### Quality Standards
-- **Accuracy**: 100% preservation of original article content and meaning
-- **Completeness**: No original content should be lost in conversion
-- **Relevance**: Only article-related content should remain
-- **Actionability**: Output should be immediately usable as a standalone Markdown document
+Practicing the *Continuous Clean Code Process* (CCCP) is critical to prevent a big ball of mud. Through continuous refactorings, not only codebases stay clean, they are fun and as a side-effect teams end up with a maintainable codebase which is a pleasure to work with. Developer happiness will be high. **A clean codebase builds the foundation for fast development over time and high-quality products.** Organizations will also profit since happy developers are more productive and attract even more good developers. Finally there is no excuse to write bad code 😄 – but it is still hard.
 
-## Special Instructions
+### Star Wars Fun Facts
 
-### Constraints & Limitations
-- **Hard Constraints**: 
-  - NEVER alter, summarize, or paraphrase the original article content
-  - NEVER add content that wasn't in the original HTML
-  - NEVER remove content that belongs to the main article
-  - ALWAYS preserve the exact wording and tone of the original
-  - OUTPUT ONLY the converted Markdown content - no introductory text, explanations, or commentary
-  - DO NOT include phrases like "Here's the conversion" or "I've converted the HTML"
-- **Soft Guidelines**: 
-  - Prefer standard Markdown syntax over HTML when possible
-  - Clean up excessive whitespace while preserving intentional formatting
-  - Normalize heading structure if inconsistent
+CCCP is also known as C3-PO.
 
-### Context-Specific Rules
-- **Content Identification**: Use semantic HTML elements (article, main, section) and content patterns to identify article boundaries
-- **Advertisement Detection**: Recognize common ad patterns (class names like "ad", "sponsor", "promo", "jobs", "careers", "hiring", inline styles for ads)
-- **Image Handling**: Convert to Markdown image syntax, preserve alt text, maintain relative positioning
-- **Link Preservation**: Convert all article-relevant links to Markdown format
-- **Table Conversion**: Transform HTML tables to Markdown table syntax
-- **Code Block Handling**: Preserve syntax highlighting information when present
-- **Footnote Processing**: Convert HTML footnotes to standard Markdown footnote syntax [^1]
+### References
 
-## Success Metrics
-- **Primary Success Indicators**: 
-  - All original article content is present and unchanged
-  - No advertisements or unrelated content remains
-  - Markdown syntax is correct and renders properly
-- **Quality Checkpoints**: 
-  - Verify all headings are properly hierarchical
-  - Confirm all links and images are correctly formatted
-  - Ensure no content was accidentally removed
-- **User Satisfaction Markers**: 
-  - Output can be used immediately without further editing
-  - Article meaning and structure are perfectly preserved
-  - Clean, readable Markdown that follows standard conventions
-
-## Content Filtering Guidelines
-
-### INCLUDE (Article Content):
-- Main article text, headlines, subheadings
-- Author bylines, publication dates, article metadata
-- In-article images, captions, and media
-- Quotes, citations, and references
-- Footnotes, endnotes, and reference lists
-- Lists, tables, and structured data within the article
-- Relevant links that support the article content
-
-### EXCLUDE (Non-Article Content):
-- Banner advertisements, display ads, sponsored content
-- Job board sections, career listings, "We're hiring" sections
-- Navigation menus, site headers/footers
-- Sidebar content, related articles suggestions
-- Social media sharing buttons and widgets
-- Comment sections, user discussion areas, and user-generated content
-- Newsletter signup forms, promotional overlays
-- Cookie notices, privacy banners
-- Site search boxes, category tags unrelated to article content
-- Reading time estimates, author bios outside the article context
-"""
-
-
-ARTICLE_TO_MARKDOWN_PROMPT_1 = """
-# TASK
-You convert web content to clean Markdown format. You must preserve ALL original content while removing ads and unrelated sections.
-
-# WHAT TO KEEP
-- Main article text
-- Article title 
-- All headings and subheadings
-- Lists and bullet points
-- Links within the content
-- Images that are part of the article
-- Code blocks and examples
-- References if they belong to the main article
-
-# WHAT TO REMOVE
-- Ads and advertisements
-- Newsletter signup boxes
-- Comments sections
-- Sidebars with unrelated content
-- Navigation menus
-- Footer content
-
-# STEP-BY-STEP PROCESS
-1. Find the main article title - this becomes your H1 heading with `#`
-2. Find the main article content - ignore everything else
-3. Convert HTML tags to Markdown:
-   - `<h2>` becomes `##`
-   - `<h3>` becomes `###`
-   - `<strong>` or `<b>` becomes `**text**`
-   - `<em>` or `<i>` becomes `*text*`
-4. Convert HTML codes to normal characters:
-   - `&amp;` becomes `&`
-   - `&lt;` becomes `<`
-   - `&gt;` becomes `>`
-   - `&#8211;` becomes `-`
-   - `&#8217;` becomes `'`
-5. Format lists properly:
-   - Bullet points: `- item`
-   - Numbered lists: `1. item`
-6. Format links: `[link text](url)`
-7. Fix image URLs and format them:
-   - If image URL starts with `/` (like `/images/photo.jpg`), add the website domain to make it complete
-   - Example: `/images/photo.jpg` becomes `https://example.com/images/photo.jpg`
-   - Format as: `![description](complete-image-url)` on its own line
-
-# IMAGE URL RULES
-- Partial URLs that start with `/` are incomplete
-- Add the main website URL to the beginning to make them work
-- Example: If the website is `https://techblog.com` and image is `/assets/diagram.png`
-- Result: `https://techblog.com/assets/diagram.png`
-- Keep full URLs (starting with `http://` or `https://`) as they are
-
-# FORMATTING RULES
-- Put article title as `# Title` at the top
-- No empty lines between paragraphs
-- No empty lines after headings
-- Put one empty line before and after blockquotes
-- Put images on separate lines with empty lines before and after
-- Never have two empty lines in a row
-- Keep all links inline with the text
-
-# OUTPUT
-Only output the final Markdown. Do not add explanations, warnings, or notes. Start with the article title as H1.
-"""
+1. [Is High Quality Software Worth the Cost? - Martin Fowler](https://martinfowler.com/articles/is-quality-worth-cost.html)
+2. [A Philosophy of Software Design - John Ousterhout](https://web.stanford.edu/~ouster/cgi-bin/book.php)
+</OUTPUT>

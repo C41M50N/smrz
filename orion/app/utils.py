@@ -108,7 +108,7 @@ def normalize_youtube_url(url: str) -> str:
 class ArticleMetadata(BaseModel):
     title: str
     author: str | None = None
-    published_date: datetime.date | None = None
+    published_date: str | None = None
     favicon: str | None = None
     meta_image: str | None = None
 
@@ -132,6 +132,9 @@ def extract_article_metadata(url: str) -> ArticleMetadata:
     elif not isinstance(published_date, datetime.datetime):
         published_date = None
 
+    if published_date:
+        published_date = published_date.isoformat()
+
     return ArticleMetadata(
         title=article.title,
         author=", ".join(article.authors) if article.authors else None,
@@ -147,7 +150,7 @@ def extract_article_metadata(url: str) -> ArticleMetadata:
 class YoutubeMetadata(BaseModel):
     title: str
     channel: str | None = None
-    published_date: datetime.date | None = None
+    published_date: str | None = None
     thumbnail_url: str | None = None
 
 
@@ -181,7 +184,7 @@ def extract_youtube_metadata(url: str) -> YoutubeMetadata:
     )
 
 
-def _get_youtube_video_publish_date(yt_url: str) -> datetime.date:
+def _get_youtube_video_publish_date(yt_url: str) -> str:
     """
     Extract the publish date from a YouTube video URL.
 
@@ -215,7 +218,7 @@ def _get_youtube_video_publish_date(yt_url: str) -> datetime.date:
             date_str = date_elements[0]
             from dateutil import parser
 
-            return parser.parse(date_str).date()
+            return parser.parse(date_str).date().isoformat()
         else:
             raise ValueError("Publish date not found in the video page")
 

@@ -22,14 +22,15 @@ def index():
 @router.get("/clean-html", description="Returns cleaned HTML content from a URL.")
 def clean_html(url: str):
     return JSONResponse(
-        content={"html": get_clean_html(url)}, status_code=status.HTTP_200_OK
+        content=get_clean_html(url), status_code=status.HTTP_200_OK
     )
 
 
 @router.get("/article-metadata", description="Returns metadata for an article.")
 def article_metadata(url: str):
+    metadata = extract_article_metadata(url)
     return JSONResponse(
-        content=extract_article_metadata(url), status_code=status.HTTP_200_OK
+        content=metadata.model_dump(mode="json"), status_code=status.HTTP_200_OK
     )
 
 
@@ -40,9 +41,10 @@ def youtube_metadata(url: str):
             content={"error": "Invalid YouTube URL"},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-
+    
+    metadata = extract_youtube_metadata(url)
     return JSONResponse(
-        content=extract_youtube_metadata(url), status_code=status.HTTP_200_OK
+        content=metadata.model_dump(mode="json"), status_code=status.HTTP_200_OK
     )
 
 

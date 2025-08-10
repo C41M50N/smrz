@@ -3,7 +3,7 @@ import os
 import time
 
 import instructor
-from openai import OpenAI
+from openai import NotGiven, OpenAI
 from pydantic import BaseModel
 from typing import Type, TypedDict
 
@@ -15,6 +15,9 @@ class Models(StrEnum):
     GEMINI_2_5_FLASH_LITE_PREVIEW = "gemini-2.5-flash-lite-preview-06-17"
     GEMINI_2_0_FLASH = "gemini-2.0-flash"
     # OpenAI Models
+    GPT_5 = "gpt-5-2025-08-07"
+    GPT_5_MINI = "gpt-5-mini-2025-08-07"
+    GPT_5_NANO = "gpt-5-nano-2025-08-07"
     GPT_4O_MINI = "gpt-4o-mini"
     GPT_4_1_NANO_2025_04_14 = "gpt-4.1-nano-2025-04-14"
     GPT_4_1_MINI_2025_04_14 = "gpt-4.1-mini-2025-04-14"
@@ -63,6 +66,24 @@ MODEL_REGISTRY: dict[Models, ModelInfo] = {
         "cost_per_1M_output_tokens": 20,  # 0.20 USD
     },
     # OpenAI Models
+    Models.GPT_5: {
+        "name": "GPT-5",
+        "provider": "OpenAI",
+        "cost_per_1M_input_tokens": 125,  # 1.25 USD
+        "cost_per_1M_output_tokens": 1000,  # 10.00 USD
+    },
+    Models.GPT_5_MINI: {
+        "name": "GPT-5 Mini",
+        "provider": "OpenAI",
+        "cost_per_1M_input_tokens": 25,  # 0.25 USD
+        "cost_per_1M_output_tokens": 200,  # 2.00 USD
+    },
+    Models.GPT_5_NANO: {
+        "name": "GPT-5 Nano",
+        "provider": "OpenAI",
+        "cost_per_1M_input_tokens": 5,  # 0.05 USD
+        "cost_per_1M_output_tokens": 40,  # 0.40 USD
+    },
     Models.GPT_4O_MINI: {
         "name": "GPT-4o Mini",
         "provider": "OpenAI",
@@ -191,14 +212,26 @@ class LLMClient:
         start_time = time.time()
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=temp,
-            )
+            if self.model in {Models.GPT_5_NANO, Models.GPT_5_MINI, Models.GPT_5}:
+                # GPT-5 Nano and Mini use chat.completions with reasoning_effort
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    reasoning_effort="medium",  # Enable medium reasoning effort for GPT-5 Nano and Mini
+                )
+            else:
+                # Other models use the standard chat.completions endpoint
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=temp,
+                )
         except Exception as e:
             raise RuntimeError(f"Failed to generate response: {str(e)}")
 
